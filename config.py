@@ -3,10 +3,10 @@ class cfg:
 
     device = "cuda"
 
-    noised_mask_ratio_front = 0.0
-    noised_mask_ratio_rot = 0.0
-    synthetic_mask_ratio_front = 0.0
-    synthetic_mask_ratio_rot = 0.0
+    noised_mask_ratio_non_occlu = 0.0
+    noised_mask_ratio_occlu = 0.0
+    synthetic_mask_ratio_occlu = 0.0
+    synthetic_mask_ratio_non_occlu = 0.0
 
     # TM-NOTE: train of phase 1 -> only pixel loss
     GAN_LOSS_WEIGHT = 0.75
