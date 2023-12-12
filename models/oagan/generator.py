@@ -1,0 +1,157 @@
+import os
+
+import torch
+import torch.nn as nn
+
+from models.backbones.imintv5 import iresnet160, make_decoder_layer, ConvBNBlock
+
+
+class ResidualBlock(nn.Module):
+
+    def __init__(self, dim_in, dim_out):
+        super(ResidualBlock, self).__init__()
+        self.main = nn.Sequential(
+            nn.Conv2d(dim_in, dim_out, kernel_size=3,
+                      stride=1, padding=1, bias=False),
+            nn.InstanceNorm2d(dim_out, affine=True),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(dim_out, dim_out, kernel_size=3,
+                      stride=1, padding=1, bias=False),
+            nn.InstanceNorm2d(dim_out, affine=True))
+
+    def forward(self, x):
+        return x + self.main(x)
+
+
+class PredictMasked(torch.nn.Module):
+    def __init__(self, conv_dim=64, repeat_num=6, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        layers = []
+        layers.append(nn.Conv2d(3, conv_dim, kernel_size=7,
+                                stride=1, padding=3, bias=False))
+        layers.append(nn.InstanceNorm2d(conv_dim, affine=True))
+        layers.append(nn.ReLU(inplace=True))
+        curr_dim = conv_dim
+        for i in range(2):
+            layers.append(nn.Conv2d(curr_dim, curr_dim*2,
+                                    kernel_size=4, stride=2, padding=1, bias=False))
+            layers.append(nn.InstanceNorm2d(curr_dim*2, affine=True))
+            layers.append(nn.ReLU(inplace=True))
+            curr_dim = curr_dim * 2
+
+        for i in range(repeat_num):
+            layers.append(ResidualBlock(dim_in=curr_dim, dim_out=curr_dim))
+
+        for i in range(2):
+            layers.append(nn.ConvTranspose2d(curr_dim, curr_dim //
+                                             2, kernel_size=4, stride=2, padding=1, bias=False))
+            layers.append(nn.InstanceNorm2d(curr_dim//2, affine=True))
+            layers.append(nn.ReLU(inplace=True))
+            curr_dim = curr_dim // 2
+
+        self.main = nn.Sequential(*layers)
+
+        layers = []
+        layers.append(nn.Conv2d(curr_dim, 1, kernel_size=7,
+                                stride=1, padding=3, bias=False))
+        # layers.append(nn.Sigmoid())
+        self.attetion_reg = nn.Sequential(*layers)
+        self.sig = nn.Sigmoid()
+
+    def forward(self, x):
+        features = self.main(x)
+        mask_map = self.attetion_reg(features)
+        mask_map = self.sig(mask_map)
+        return mask_map
+
+    pass
+
+
+class Encoder(torch.nn.Module):
+    def __init__(self, pretrained=None, arch="r160", *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+        if arch.lower() == "r160":
+            self.model = iresnet160(pretrained=False)
+
+            if pretrained is not None:
+                self.model.load_state_dict(torch.load(pretrained))
+
+    def forward(self, x):
+        x, x_56, x_28, x_14, x_7 = self.model(x)
+        norm_x = x / torch.norm(x, p=2, dim=1, keepdim=True)
+        return norm_x, x_56, x_28, x_14, x_7
+
+
+class Decoder(nn.Module):
+    def __init__(self):
+        super(Decoder, self).__init__()
+        self.layer1 = make_decoder_layer(
+            inplanes=512, planes=256, n_blocks=8, activation='PReLU')
+        self.layer2 = make_decoder_layer(
+            inplanes=256, planes=128, n_blocks=8, activation='PReLU')
+        self.layer3 = make_decoder_layer(
+            inplanes=128, planes=64, n_blocks=8, activation='PReLU')
+        self.layer4 = make_decoder_layer(
+            inplanes=64, planes=32, n_blocks=8, activation='PReLU')
+        self.layer5 = make_decoder_layer(
+            inplanes=32, planes=16, n_blocks=8, activation='PReLU')
+        self.last_conv = ConvBNBlock(inplanes=16, planes=3, activation=None)
+        self.upsample = nn.Upsample(
+            scale_factor=2, mode='bilinear', align_corners=False)
+        self.tanh = nn.Tanh()
+
+    def forward(self, feat, x_56, x_28, x_14, x_7):
+        x = self.layer1(x_7)  # Bx128x7x7
+        x = self.upsample(x)  # Bx128x14x14
+        # x = torch.cat((x, x_14), dim=1)
+        x = self.layer2(x)  # Bx64x14x14
+        x = self.upsample(x)  # Bx64x28x28
+        # x = torch.cat((x, x_28), dim=1)
+        x = self.layer3(x)  # Bx32x28x28
+        x = self.upsample(x)  # Bx32x56x56
+        # x = torch.cat((x, x_56), dim=1)
+        x = self.layer4(x)  # Bx16x56x56
+        x = self.upsample(x)  # Bx16x112x112
+        x = self.layer5(x)  # Bx3x112x112
+        x = self.last_conv(x)
+        x = self.tanh(x)
+        return x
+
+
+class DeocclusionFaceGenerator(torch.nn.Module):
+    def __init__(self, pretrained_encoder=None, arch_encoder=None, freeze_encoder=True, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+        self.encoder = Encoder(
+            pretrained=pretrained_encoder, arch=arch_encoder)
+        self.decoder = Decoder()
+
+        self.freeze_encoder = freeze_encoder
+
+        if freeze_encoder:
+            self.encoder.eval()
+            for p in self.encoder.parameters():
+                p.requires_grad = False
+
+    def forward(self, x):
+        feat, x_56, x_28, x_14, x_7 = self.encoder.forward(x)
+        out = self.decoder(feat, x_56, x_28, x_14, x_7)
+        return feat, out
+
+
+class OAGAN_Generator(torch.nn.Module):
+    def __init__(self, pretrained_encoder, arch_encoder, freeze_encoder=True, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+        self.predict_masked_model = PredictMasked(conv_dim=64, repeat_num=6)
+        self.deocclusion_model = DeocclusionFaceGenerator(
+            pretrained_encoder=pretrained_encoder, arch_encoder=arch_encoder, freeze_encoder=freeze_encoder)
+
+    def forward(self, image):
+        masked = self.predict_masked_model(image)
+        restore_image = self.deocclusion_model(masked * image)
+
+        return restore_image
+    
+    
