@@ -75,6 +75,7 @@ class Encoder(torch.nn.Module):
             self.model = iresnet160(pretrained=False)
 
             if pretrained is not None:
+                print("[INFO] Load weight: ", pretrained)
                 self.model.load_state_dict(torch.load(pretrained))
 
     def forward(self, x):
@@ -154,4 +155,4 @@ class OAGAN_Generator(torch.nn.Module):
 
         return restore_image
     
-    
+
