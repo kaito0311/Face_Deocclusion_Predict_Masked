@@ -39,12 +39,12 @@ def pixel_wise(out_front, target_front):
     return torch.mean(torch.abs(out_front - target_front))
 
 
-def identity_loss(model_gen, feat_rot, out_rot, feat_front, out_front):
+def identity_loss(model_extract_feature, feat_rot, out_rot, feat_front, out_front):
     # Get feat of generator output of ROTATION image
-    gen_feat_rot, _, _, _, _ = model_gen.encoder(out_rot)
+    gen_feat_rot, _, _, _, _ = model_extract_feature(out_rot)
     gen_feat_rot = torch.nn.functional.normalize(gen_feat_rot, p=2, dim=1)
     # Get feat of generator output of FRONT image
-    gen_feat_front, _, _, _, _ = model_gen.encoder(out_front)
+    gen_feat_front, _, _, _, _ = model_extract_feature(out_front)
     gen_feat_front = torch.nn.functional.normalize(gen_feat_front, p=2, dim=1)
     # Identity loss
     assert len(gen_feat_front.size()) == 2, "Invalid output dimension: {}".format(

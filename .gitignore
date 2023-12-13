@@ -1,0 +1,6 @@
+*.pt
+*.pth
+*.jpg
+*.pyc
+mlruns/
+experiment_*/

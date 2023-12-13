@@ -19,7 +19,6 @@ from losses.vgg_feature_losses import PerceptualLoss, GANLoss
 from losses.losses import pixel_wise, sobel_loss, identity_loss
 
 
-
 gan_loss_obj = GANLoss('wgan_softplus')
 percep_loss_obj = PerceptualLoss(layer_weights={'conv1_2': 0.1,
                                                 'conv2_2': 0.1,
@@ -59,10 +58,10 @@ def discriminator_loss(disc_out_rot, disc_out_front, disc_target_front):
     return real_loss, fake_loss, real_loss + fake_loss
 
 
-def generator_loss(disc_out_front, disc_out_rot, feat_rot, out_rot, feat_front, out_front, target_front, step=None):
+def generator_loss(disc_out_front, disc_out_rot, feat_occlu, out_occlu, feat_non_occlu, out_non_occlu, target_non_occlu, step=None):
     # Gan loss
     loss_object = torch.nn.BCEWithLogitsLoss()
-    B = target_front.size()[0]
+    B = target_non_occlu.size()[0]
     gan_loss = 0
     for ix in range(len(disc_out_front)):
         com_rot = disc_out_rot[ix].view(B, -1)
@@ -78,25 +77,27 @@ def generator_loss(disc_out_front, disc_out_rot, feat_rot, out_rot, feat_front, 
     gan_loss /= len(disc_out_front)
 
     # Pixel wise
-    pixel_loss = cfg.PIXEL_LOSS_WEIGHT * pixel_wise(out_front, target_front)
+    pixel_loss = cfg.PIXEL_LOSS_WEIGHT * \
+        pixel_wise(out_non_occlu, target_non_occlu)
 
     # # Identity FIXME
-    # id_loss = cfg.IDENTITY_LOSS_WEIGHT * \
-    #     identity_loss(mode_extract_identity, feat_rot, out_rot, feat_front, out_front)
-    id_loss = 0
+    id_loss = cfg.IDENTITY_LOSS_WEIGHT * \
+        identity_loss(model_generator.deocclusion_model.encoder,
+                      feat_occlu, out_occlu, feat_non_occlu, out_non_occlu)
+    # id_loss = 0
 
     # Perceptual
-    perceptual_loss, _ = percep_loss_obj(out_front, target_front)
+    perceptual_loss, _ = percep_loss_obj(out_non_occlu, target_non_occlu)
     perceptual_loss *= cfg.PERCEPTUAL_LOSS_WEIGHT
 
     # Edge loss
     edge_loss = cfg.EDGE_LOSS_WEIGHT * \
-        sobel_loss(out_front, target_front, reduction="mean")
+        sobel_loss(out_non_occlu, target_non_occlu, reduction="mean")
 
     # SSIM loss
     kernel = gaussian_kernel(7, sigma=1).repeat(3, 1, 1)
     kernel = kernel.to("cuda")
-    ss, cs = ssim(out_front, target_front, kernel)
+    ss, cs = ssim(out_non_occlu, target_non_occlu, kernel)
     ssim_loss = cfg.SSIM_LOSS_WEIGHT * (2 - torch.mean(ss) - torch.mean(cs))
 
     if step < cfg.stage_1_iters:
@@ -112,6 +113,7 @@ def generator_loss(disc_out_front, disc_out_rot, feat_rot, out_rot, feat_front, 
             + ssim_loss
 
     return total_loss, gan_loss, pixel_loss, id_loss, perceptual_loss, edge_loss, ssim_loss
+
 
 def eval(step):
     print('-'*50)
@@ -212,28 +214,30 @@ def train():
                 p.requires_grad = False
             # Optimize generator
             optimizer_gen.zero_grad()
-            inputs_rot, input_rot_augment, inputs_front, inputs_front_augment = batch
-            inputs_rot = inputs_rot.to('cuda')
-            inputs_front = inputs_front.to('cuda')
-            inputs_front_augment = inputs_front_augment.to('cuda')
-            input_rot_augment = input_rot_augment.to("cuda")
+            inputs_occlu, input_occlu_augment, inputs_non_occlu, inputs_non_occlu_augment = batch
+            inputs_occlu = inputs_occlu.to('cuda')
+            inputs_non_occlu = inputs_non_occlu.to('cuda')
+            inputs_non_occlu_augment = inputs_non_occlu_augment.to('cuda')
+            input_occlu_augment = input_occlu_augment.to("cuda")
 
             # Get generator output
-            _, out_rot = model_gen(input_rot_augment)
-            feat_rot = model_gen.encoder(inputs_rot)[0]
-            _, out_front = model_gen(inputs_front_augment)
-            feat_front = model_gen.encoder(inputs_front)[0]
+            _, out_occlu = model_generator(input_occlu_augment)
+            feat_occlu = model_generator.deocclusion_model.encoder(inputs_occlu)[
+                0]
+            _, out_non_occlu = model_generator(inputs_non_occlu_augment)
+            feat_non_occlu = model_generator.deocclusion_model.encoder(inputs_non_occlu)[
+                0]
             # Get disciminator output
-            disc_out_rot = model_disciminator(out_rot)
-            disc_out_front = model_disciminator(out_front)
+            disc_occlu = model_disciminator(out_occlu)
+            disc_non_occlu = model_disciminator(out_non_occlu)
             # Get generator loss
-            total_loss, gan_loss, pixel_loss, identity_loss, perceptual_loss, edge_loss, ssim_loss = generator_loss(disc_out_front,
-                                                                                                                    disc_out_rot,
-                                                                                                                    feat_rot,
-                                                                                                                    out_rot,
-                                                                                                                    feat_front,
-                                                                                                                    out_front,
-                                                                                                                    inputs_front,
+            total_loss, gan_loss, pixel_loss, identity_loss, perceptual_loss, edge_loss, ssim_loss = generator_loss(disc_non_occlu,
+                                                                                                                    disc_occlu,
+                                                                                                                    feat_occlu,
+                                                                                                                    out_occlu,
+                                                                                                                    feat_non_occlu,
+                                                                                                                    out_non_occlu,
+                                                                                                                    inputs_non_occlu,
                                                                                                                     step=step)
             total_loss.backward()
             optimizer_gen.step()
@@ -244,10 +248,10 @@ def train():
                 p.requires_grad = True
             optimizer_disc.zero_grad()
             # .detach() here mean disable gradient from generator
-            fake_out_rot = model_disciminator(out_rot.detach())
+            fake_out_rot = model_disciminator(out_occlu.detach())
             # .detach() here mean disable gradient from generator
-            fake_out_front = model_disciminator(out_front.detach())
-            real_d_pred = model_disciminator(inputs_front)
+            fake_out_front = model_disciminator(out_non_occlu.detach())
+            real_d_pred = model_disciminator(inputs_non_occlu)
             real_loss, fake_loss, disc_loss = discriminator_loss(
                 fake_out_rot, fake_out_front, real_d_pred)
             disc_loss.backward()
@@ -346,6 +350,8 @@ def train():
         print('*********************')
         print('avg_gen_loss = ', avg_gen_loss)
         print('avg_disc_loss = ', avg_disc_loss)
+
+
 if __name__ == "__main__":
     # Init mlflow
     experiment_name = 'Face-Deoclusion-Predict-Masked'
@@ -355,15 +361,34 @@ if __name__ == "__main__":
                            experiment_id=experiment.experiment_id,
                            description="Init")
 
-
     ''' Define the model '''
-    model_generator = ...
-    model_disciminator = ...
+    model_generator = OAGAN_Generator(
+        pretrained_encoder="/home1/data/tanminh/NML-Face/pretrained/r160_imintv4_statedict.pth",
+        arch_encoder="r160"
+    )
+    model_disciminator = Discriminator(
+        input_size=cfg.size_image, enable_face_component_loss=cfg.enable_face_component_loss)
+
+    model_generator.to(cfg.device)
+    model_disciminator.to(cfg.device)
+    model_generator.train()
+    model_disciminator.train()
 
     ''' Define dataloader '''
-    trainset = FaceRemovedMaskedDataset(...)
-    valset = FaceRemovedMaskedDataset(...)
-
+    trainset = FaceRemovedMaskedDataset(
+        list_name_data_occlusion=cfg.train_data_occlu,
+        list_name_data_non_occlusion=cfg.train_data_non_occlu,
+        root_dir=cfg.ROOT_DIR,
+        is_train=True,
+        path_occlusion_object="/home1/data/tanminh/NML-Face/khautrang",
+    )
+    valset = FaceRemovedMaskedDataset(
+        list_name_data_occlusion=cfg.valid_data_occlu,
+        list_name_data_non_occlusion=cfg.valid_data_non_occlu,
+        root_dir=cfg.ROOT_DIR,
+        is_train=False,
+        path_occlusion_object="/home1/data/tanminh/NML-Face/khautrang",
+    )
     train_loader = DataLoader(
         trainset, batch_size=cfg.batch_size, shuffle=True,
         num_workers=cfg.num_workers, drop_last=True)
@@ -395,4 +420,3 @@ if __name__ == "__main__":
     ''' Training'''
 
     train()
-

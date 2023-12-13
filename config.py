@@ -3,7 +3,7 @@ class cfg:
 
     device = "cuda"
 
-    noised_mask_ratio_non_occlu = 0.0
+    noised_mask_ratio_non_occlu = 0.7
     noised_mask_ratio_occlu = 0.0
     synthetic_mask_ratio_occlu = 0.0
     synthetic_mask_ratio_non_occlu = 0.0
@@ -17,13 +17,13 @@ class cfg:
     SSIM_LOSS_WEIGHT = 2.0
 
     # Config
-    valid_every = 1000
+    valid_every = 100
     print_every = 50
-    batch_size = 1
+    batch_size = 4
     lr_gen = 1e-4
     lr_disc = 1e-4
     wd = 0.01
-    START_STEP = 13200
+    START_STEP = 0
     stage_1_iters = 500000
     warmup_length = 50000  # 50k iter
     epoches = 100000
@@ -33,11 +33,11 @@ class cfg:
     FREEZE_DECODE = True
 
     # TM-NOTE: Because train on phase 1 => data is only front => make model having ability gen perface face
-    ROOT_DIR = "/home1/data/FFHQ/StyleGAN_data256_jpg"
-    train_data_rot = '/home/data3/tanminh/classification_glass/Data_clean_glass_mask/train/no_masked'
-    train_data_front = '/home/data3/tanminh/classification_glass/Data_clean_glass_mask/train/no_masked'
-    valid_data_rot = '/home/data3/tanminh/classification_glass/Data_clean_glass_mask/valid/masked'
-    valid_data_front = '/home/data3/tanminh/classification_glass/Data_clean_glass_mask/valid/no_masked'
+    ROOT_DIR = "/home1/data/FFHQ/StyleGAN_data256_jpg" 
+    train_data_occlu = '/home1/data/tanminh/NML-Face/list_name_file/list_name_train_no_masked.npy'
+    train_data_non_occlu = '/home1/data/tanminh/NML-Face/list_name_file/list_name_train_no_masked.npy'
+    valid_data_occlu = '/home1/data/tanminh/NML-Face/list_name_file/list_name_val_masked.npy'
+    valid_data_non_occlu = '/home1/data/tanminh/NML-Face/list_name_file/list_name_val_no_masked.npy'
     training_dir = 'experiment_224'
     pretrained_g = "experiment_224/ckpt/ckpt_gen_lastest.pt"
     pretrained_d = "experiment_224/ckpt/ckpt_dis_lastest.pt"
