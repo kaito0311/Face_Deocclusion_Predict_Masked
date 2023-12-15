@@ -59,42 +59,56 @@ class FaceRemovedMaskedDataset(data.Dataset):
                 T.Normalize(mean=[0.5], std=[0.5])
             ])
 
-    def augment_occlusion(self, image):
-        image_augment = np.copy(np.array(image))
-        index_start_row = np.random.choice(range(0, 100))
-        distance = np.random.choice(range(50, 70))
-        index_end_row = min(index_start_row + distance, 112)
+    def mask_random(self, image, occlusion_object=None, ratio_height=0.2, ratio_width= 0.2):
+        if ratio_height is None: 
+            ratio_height = np.clip(np.random.rand(), 0.2, 0.6)
+        
+        if ratio_width is None:
+            ratio_width = np.clip(np.random.rand(), 0.2, 0.6) 
+        
+        image = np.copy(image)
+        height, width = image.shape[0], image.shape[1]
 
+        occ_height, occ_width = int(height * ratio_height), int(width * ratio_width)
+
+        row_start = np.random.randint(0, height - int(height * ratio_height))
+        row_end = min(row_start + occ_height, height)
+
+        col_start = np.random.randint(0, width - int(height * ratio_width))
+        col_end = min(col_start + occ_width, width)
+
+        if occlusion_object is not None:
+            occlusion_object = cv2.resize(
+                occlusion_object, (occ_width, occ_height))
+            
+            masked_occlu = np.sum(occlusion_object, axis=2)
+            masked_occlu = np.where(masked_occlu == 0, 0, 1)
+            masked_occlu = np.repeat(np.expand_dims(masked_occlu, 2), 3, axis=2)
+
+            image[row_start:row_end, col_start:col_end, :] = occlusion_object * \
+                masked_occlu + image[row_start:row_end,
+                                    col_start:col_end, :] * (1 - masked_occlu)
+        else:
+            occlusion_noise = np.random.rand(occ_height, occ_width, 3)
+            occlusion_noise = np.array(occlusion_noise * 255, dtype=np.uint8)
+            image[row_start:row_end, col_start:col_end, :] = occlusion_noise
+
+        return image
+
+
+    def augment_occlusion(self, image):
         mask_image = cv2.imread(os.path.join(self.path_occlusion_object, random.choice(
             os.listdir(self.path_occlusion_object))))
-        mask_image = cv2.resize(
-            mask_image, (cfg.size_image, index_end_row - index_start_row))
-        sum_mask_image = np.sum(mask_image, axis=2)
-        sum_mask_image_1 = np.where(sum_mask_image == 0, 0, 1)
-        sum_mask_image_1 = np.repeat(
-            np.expand_dims(sum_mask_image_1, 2), 3, axis=2)
-        sum_mask_image_0 = np.where(sum_mask_image == 0, 1, 0)
-        sum_mask_image_0 = np.repeat(
-            np.expand_dims(sum_mask_image_0, 2), 3, axis=2)
-
-        image_augment[index_start_row:index_end_row, :, :] = mask_image * sum_mask_image_1 + \
-            image_augment[index_start_row:index_end_row,
-                          :, :] * sum_mask_image_0
-
+        mask_image = cv2.cvtColor(mask_image, cv2.COLOR_BGR2RGB)
+        
+        image_augment = self.mask_random(image, mask_image, ratio_height= None, ratio_width= None)
         image_augment = Image.fromarray(image_augment)
 
         return image_augment
 
     def augment_gauss(self, image):
-        image_augment = np.copy(np.array(image))
-        index_start_row = np.random.choice(range(0, 100))
-        distance = np.random.choice(range(50, 70))
-        index_end_row = min(index_start_row + distance, 112)
-        noise_value = np.array(
-            np.random.normal(
-                size=(index_end_row - index_start_row, cfg.size_image, 3)) * 255, dtype=np.uint8
-        )
-        image_augment[index_start_row:index_end_row, :, :] += noise_value
+        
+        image_augment = self.mask_random(image, occlusion_object= None, ratio_height= None, ratio_width= None)
         image_augment = Image.fromarray(image_augment)
         return image_augment
 

@@ -3,7 +3,8 @@ import os
 import torch
 import torch.nn as nn
 
-from models.backbones.imintv5 import iresnet160, make_decoder_layer, ConvBNBlock
+from models.backbones.imintv5 import make_decoder_layer, ConvBNBlock
+from models.backbones.imintv5_custom import iresnet160_custom
 
 
 class ResidualBlock(nn.Module):
@@ -72,7 +73,7 @@ class Encoder(torch.nn.Module):
         super().__init__(*args, **kwargs)
 
         if arch.lower() == "r160":
-            self.model = iresnet160(pretrained=False)
+            self.model = iresnet160_custom(pretrained=False)
 
             if pretrained is not None:
                 print("[INFO] Load weight: ", pretrained)
@@ -126,6 +127,12 @@ class DeocclusionFaceGenerator(torch.nn.Module):
 
         self.encoder = Encoder(
             pretrained=pretrained_encoder, arch=arch_encoder)
+        self.preprocess_encoder = nn.Sequential(
+            nn.Conv2d(4, 64, kernel_size=3,  # input 4 channel instead of 3 channels
+                      stride=1, padding=1, bias=False),
+            nn.BatchNorm2d(64, eps=1e-05),
+            nn.PReLU(64)
+        )
         self.decoder = Decoder()
 
         self.freeze_encoder = freeze_encoder
@@ -135,8 +142,12 @@ class DeocclusionFaceGenerator(torch.nn.Module):
             for p in self.encoder.parameters():
                 p.requires_grad = False
 
-    def forward(self, x):
-        feat, x_56, x_28, x_14, x_7 = self.encoder.forward(x)
+    def forward(self, x, masked):
+        rich_feature_image = self.preprocess_encoder(
+            torch.concat([x * masked, masked], dim=1))
+        print(masked)
+        print(masked.shape)
+        feat, x_56, x_28, x_14, x_7 = self.encoder.forward(rich_feature_image)
         out = self.decoder(feat, x_56, x_28, x_14, x_7)
         return feat, out
 
@@ -151,8 +162,6 @@ class OAGAN_Generator(torch.nn.Module):
 
     def forward(self, image):
         masked = self.predict_masked_model(image)
-        restore_image = self.deocclusion_model(masked * image)
-
-        return restore_image
-    
-
+        feature, restore_image = self.deocclusion_model(image, masked)
+        restore_image = restore_image * (1.0 - masked) + image * masked
+        return feature, restore_image

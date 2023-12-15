@@ -264,9 +264,9 @@ class IResNet(nn.Module):
 
     def forward(self, x):
         with torch.cuda.amp.autocast(self.fp16):
-            x = self.conv1(x)
-            x = self.bn1(x)
-            x = self.prelu(x)
+            # x = self.conv1(x)
+            # x = self.bn1(x)
+            # x = self.prelu(x)
             x_56 = self.layer1(x)
             x_28 = self.layer2(x_56)
             x_14 = self.layer3(x_28)
@@ -286,36 +286,36 @@ def _iresnet(arch, block, layers, pretrained, progress, **kwargs):
     return model
 
 
-def iresnet18(pretrained=False, progress=True, **kwargs):
-    return _iresnet('iresnet18', IBasicBlock, [2, 2, 2, 2], pretrained,
-                    progress, **kwargs)
+# def iresnet18(pretrained=False, progress=True, **kwargs):
+#     return _iresnet('iresnet18', IBasicBlock, [2, 2, 2, 2], pretrained,
+#                     progress, **kwargs)
 
 
-def iresnet34(pretrained=False, progress=True, **kwargs):
-    return _iresnet('iresnet34', IBasicBlock, [3, 4, 6, 3], pretrained,
-                    progress, **kwargs)
+# def iresnet34(pretrained=False, progress=True, **kwargs):
+#     return _iresnet('iresnet34', IBasicBlock, [3, 4, 6, 3], pretrained,
+#                     progress, **kwargs)
 
 
-def iresnet50(pretrained=False, progress=True, **kwargs):
-    return _iresnet('iresnet50', IBasicBlock, [3, 4, 14, 3], pretrained,
-                    progress, **kwargs)
+# def iresnet50(pretrained=False, progress=True, **kwargs):
+#     return _iresnet('iresnet50', IBasicBlock, [3, 4, 14, 3], pretrained,
+#                     progress, **kwargs)
 
 
-def iresnet100(pretrained=False, progress=True, **kwargs):
-    return _iresnet('iresnet100', IBasicBlock, [3, 13, 30, 3], pretrained,
-                    progress, **kwargs)
+# def iresnet100(pretrained=False, progress=True, **kwargs):
+#     return _iresnet('iresnet100', IBasicBlock, [3, 13, 30, 3], pretrained,
+#                     progress, **kwargs)
 
 
-def iresnet124(pretrained=False, progress=True, **kwargs):
-    return _iresnet('iresnet124', IBasicBlock, [3, 13, 40, 5], pretrained,
-                    progress, **kwargs)
+# def iresnet124(pretrained=False, progress=True, **kwargs):
+#     return _iresnet('iresnet124', IBasicBlock, [3, 13, 40, 5], pretrained,
+#                     progress, **kwargs)
 
 
-def iresnet160(pretrained=False, progress=True, **kwargs):
+def iresnet160_custom(pretrained=False, progress=True, **kwargs):
     return _iresnet('iresnet160', IBasicBlock, [3, 24, 49, 3], pretrained,
                     progress, **kwargs)
 
 
-def iresnet200(pretrained=False, progress=True, **kwargs):
-    return _iresnet('iresnet200', IBasicBlock, [6, 26, 60, 6], pretrained,
-                    progress, **kwargs)
+# def iresnet200(pretrained=False, progress=True, **kwargs):
+#     return _iresnet('iresnet200', IBasicBlock, [6, 26, 60, 6], pretrained,
+#                     progress, **kwargs)

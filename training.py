@@ -82,7 +82,7 @@ def generator_loss(disc_out_front, disc_out_rot, feat_occlu, out_occlu, feat_non
 
     # # Identity FIXME
     id_loss = cfg.IDENTITY_LOSS_WEIGHT * \
-        identity_loss(model_generator.deocclusion_model.encoder,
+        identity_loss(model_feature_extraction,
                       feat_occlu, out_occlu, feat_non_occlu, out_non_occlu)
     # id_loss = 0
 
@@ -181,6 +181,7 @@ def eval(step):
 
 def train():
     step = cfg.START_STEP
+    print("Start step: ", step)
     for epoch in range(0, cfg.epoches):
 
         # os.makedirs(os.path.join (training_dir, f"EPOCH{epoch}"), exist_ok = True)
@@ -222,11 +223,9 @@ def train():
 
             # Get generator output
             _, out_occlu = model_generator(input_occlu_augment)
-            feat_occlu = model_generator.deocclusion_model.encoder(inputs_occlu)[
-                0]
+            feat_occlu = model_feature_extraction(inputs_occlu)[0]
             _, out_non_occlu = model_generator(inputs_non_occlu_augment)
-            feat_non_occlu = model_generator.deocclusion_model.encoder(inputs_non_occlu)[
-                0]
+            feat_non_occlu = model_feature_extraction(inputs_non_occlu)[0]
             # Get disciminator output
             disc_occlu = model_disciminator(out_occlu)
             disc_non_occlu = model_disciminator(out_non_occlu)
@@ -362,26 +361,50 @@ if __name__ == "__main__":
                            description="Init")
 
     ''' Define the model '''
+    from models.backbones.imintv5 import iresnet160
+    model_feature_extraction = iresnet160(pretrained=False)
+    model_feature_extraction.load_state_dict(
+        torch.load(
+            "/home1/data/tanminh/NML-Face/pretrained/r160_imintv4_statedict.pth")
+    )
+
     model_generator = OAGAN_Generator(
         pretrained_encoder="/home1/data/tanminh/NML-Face/pretrained/r160_imintv4_statedict.pth",
-        arch_encoder="r160"
+        arch_encoder="r160",
+        freeze_encoder= True
     )
     model_disciminator = Discriminator(
         input_size=cfg.size_image, enable_face_component_loss=cfg.enable_face_component_loss)
 
+    if cfg.pretrained_g is not None: 
+        print("[INFO]: Loadding pretrained ", cfg.pretrained_g)
+        print("[INFO]: Loadding pretrained ", cfg.pretrained_d)
+        model_generator.load_state_dict(torch.load(cfg.pretrained_g))
+        model_disciminator.load_state_dict(torch.load(cfg.pretrained_d))
+
+
     model_generator.to(cfg.device)
     model_disciminator.to(cfg.device)
+    model_feature_extraction.to(cfg.device)
     model_generator.train()
     model_disciminator.train()
+    model_feature_extraction.eval()
 
     ''' Define dataloader '''
     trainset = FaceRemovedMaskedDataset(
-        list_name_data_occlusion=cfg.train_data_occlu,
+        list_name_data_occlusion=cfg.train_data_non_occlu,  # NOTE
         list_name_data_non_occlusion=cfg.train_data_non_occlu,
         root_dir=cfg.ROOT_DIR,
         is_train=True,
         path_occlusion_object="/home1/data/tanminh/NML-Face/khautrang",
     )
+    # trainset = FaceRemovedMaskedDataset(
+    #     list_name_data_occlusion=cfg.train_data_occlu,
+    #     list_name_data_non_occlusion=cfg.train_data_non_occlu,
+    #     root_dir=cfg.ROOT_DIR,
+    #     is_train=True,
+    #     path_occlusion_object="/home1/data/tanminh/NML-Face/khautrang",
+    # )
     valset = FaceRemovedMaskedDataset(
         list_name_data_occlusion=cfg.valid_data_occlu,
         list_name_data_non_occlusion=cfg.valid_data_non_occlu,

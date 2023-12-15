@@ -3,4 +3,4 @@
 *.jpg
 *.pyc
 mlruns/
-experiment_*/
+experiment*/
