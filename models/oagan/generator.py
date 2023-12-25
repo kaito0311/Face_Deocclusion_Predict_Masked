@@ -145,8 +145,6 @@ class DeocclusionFaceGenerator(torch.nn.Module):
     def forward(self, x, masked):
         rich_feature_image = self.preprocess_encoder(
             torch.concat([x * masked, masked], dim=1))
-        print(masked)
-        print(masked.shape)
         feat, x_56, x_28, x_14, x_7 = self.encoder.forward(rich_feature_image)
         out = self.decoder(feat, x_56, x_28, x_14, x_7)
         return feat, out
@@ -163,12 +161,12 @@ class OAGAN_Generator(torch.nn.Module):
     def forward(self, image):
         masked = self.predict_masked_model(image)
         feature, restore_image = self.deocclusion_model(image, masked)
-        restore_image = restore_image * (1.0 - masked) + image * masked
+        restore_image = restore_image * masked + image * (1.0 - masked)
         return feature, restore_image
 
     @torch.no_grad()
     def predict(self, image): 
         masked = self.predict_masked_model(image)
         feature, restore_image = self.deocclusion_model(image, masked)
-        restore_image = restore_image * (1.0 - masked) + image * masked
+        restore_image = restore_image * masked + image * (1.0 - masked)
         return masked, restore_image

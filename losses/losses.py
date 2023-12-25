@@ -57,6 +57,19 @@ def identity_loss(model_extract_feature, feat_rot, out_rot, feat_front, out_fron
     return (loss_identity_rot + loss_identity_front)/2.0
 
 
+def identity_loss(model_extract_feature, restore_image, ori_image): 
+    feature_restore, _, _, _, _ = model_extract_feature(restore_image)
+    feature_restore = torch.nn.functional.normalize(feature_restore, p=2, dim=1) 
+
+    feature_ori, _, _, _, _ = model_extract_feature(ori_image)
+    feature_ori = torch.nn.functional.normalize(feature_ori, p=2, dim=1) 
+
+    assert len(feature_restore.size()) == 2, "Invalid output dimension: {}".format(
+        feature_restore.size())
+
+    loss_identity = torch.mean(torch.sum((feature_restore - feature_ori) ** 2, dim=1))
+    return loss_identity 
+
 class SobelLoss(nn.Module):
     """L1 (mean absolute error, MAE) loss.
 

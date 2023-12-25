@@ -92,7 +92,7 @@ class FaceDataset(data.Dataset):
                              col_start:col_end, :] * (1 - mask)
         else:
             occlusion_noise = np.random.rand(occ_height, occ_width, 3)
-            occlusion_noise = np.array(occlusion_noise * 255, dtype=np.uint8)
+            occlusion_noise = np.array(occlusion_noise)
             image[row_start:row_end, col_start:col_end, :] = occlusion_noise
 
         return image
@@ -122,7 +122,7 @@ class FaceDataset(data.Dataset):
 
         image = Image.open(path_image)
 
-        if torch.rand(1)[0] < self.ratio_occlu: 
+        if np.random.rand() < self.ratio_occlu: 
             mask, occlu_image = self.augment_occlusion(image) 
         else: 
             occlu_image = image.copy()
