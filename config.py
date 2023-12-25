@@ -3,10 +3,10 @@ class cfg:
 
     device = "cuda"
 
-    noised_mask_ratio_non_occlu = 0.7
+    noised_mask_ratio_non_occlu = 0.5
+    synthetic_mask_ratio_non_occlu = 0.6
     noised_mask_ratio_occlu = 0.0
     synthetic_mask_ratio_occlu = 0.0
-    synthetic_mask_ratio_non_occlu = 0.5
 
     # TM-NOTE: train of phase 1 -> only pixel loss
     GAN_LOSS_WEIGHT = 0.75
@@ -17,7 +17,7 @@ class cfg:
     SSIM_LOSS_WEIGHT = 2.0
 
     # Config
-    valid_every = 100
+    valid_every = 1000
     print_every = 50
     batch_size = 4
     lr_gen = 1e-4
@@ -36,6 +36,6 @@ class cfg:
     train_data_non_occlu = '/home1/data/tanminh/NML-Face/list_name_file/list_name_train_no_masked.npy'
     valid_data_occlu = '/home1/data/tanminh/NML-Face/list_name_file/list_name_val_masked.npy'
     valid_data_non_occlu = '/home1/data/tanminh/NML-Face/list_name_file/list_name_val_no_masked.npy'
-    training_dir = 'experiment_new_augment'
+    training_dir = 'all_experiments/new_experiment2'
     pretrained_g = None
     pretrained_d = None

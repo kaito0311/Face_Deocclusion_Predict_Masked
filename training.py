@@ -396,7 +396,7 @@ if __name__ == "__main__":
         list_name_data_non_occlusion=cfg.train_data_non_occlu,
         root_dir=cfg.ROOT_DIR,
         is_train=True,
-        path_occlusion_object="/home1/data/tanminh/NML-Face/khautrang",
+        path_occlusion_object="images/occlusion_object/clean_segment",
     )
     # trainset = FaceRemovedMaskedDataset(
     #     list_name_data_occlusion=cfg.train_data_occlu,
@@ -410,7 +410,7 @@ if __name__ == "__main__":
         list_name_data_non_occlusion=cfg.valid_data_non_occlu,
         root_dir=cfg.ROOT_DIR,
         is_train=False,
-        path_occlusion_object="/home1/data/tanminh/NML-Face/khautrang",
+        path_occlusion_object="images/occlusion_object/clean_segment",
     )
     train_loader = DataLoader(
         trainset, batch_size=cfg.batch_size, shuffle=True,

@@ -25,17 +25,31 @@ class FaceRemovedMaskedDataset(data.Dataset):
         self.is_augment_occlusion = augment_occlusion
         self.is_augment_gauss = augment_gauss
         self.root_dir = root_dir
+        self.list_path_occlusion_object = os.listdir(path_occlusion_object) if path_occlusion_object is not None else None 
 
-        if maximum is not None:
-            self.list_img_occlu = shuffle(
-                np.load(list_name_data_occlusion))[:maximum]
-            self.list_img_non_occlu = shuffle(
-                np.load(list_name_data_non_occlusion))[:maximum]
+        if str(list_name_data_non_occlusion).endswith(".npy"):
+            if maximum is not None:
+                self.list_img_occlu = shuffle(
+                    np.load(list_name_data_occlusion))[:maximum]
+                self.list_img_non_occlu = shuffle(
+                    np.load(list_name_data_non_occlusion))[:maximum]
+            else:
+                self.list_img_occlu = shuffle(
+                    np.load(list_name_data_occlusion))[:maximum]
+                self.list_img_non_occlu = shuffle(
+                    np.load(list_name_data_non_occlusion))[:maximum]
         else:
-            self.list_img_occlu = shuffle(
-                np.load(list_name_data_occlusion))[:maximum]
-            self.list_img_non_occlu = shuffle(
-                np.load(list_name_data_non_occlusion))[:maximum]
+            if maximum is not None:
+                self.list_img_occlu = shuffle(
+                    os.listdir(list_name_data_occlusion))[:maximum]
+                self.list_img_non_occlu = shuffle(
+                    os.listdir(list_name_data_non_occlusion))[:maximum]
+            else:
+                self.list_img_occlu = shuffle(
+                    os.listdir(list_name_data_occlusion))[:maximum]
+                self.list_img_non_occlu = shuffle(
+                    os.listdir(list_name_data_non_occlusion))[:maximum]
+
 
         self.list_img_occlu = [os.path.join(
             root_dir, path) for path in self.list_img_occlu]
@@ -58,18 +72,26 @@ class FaceRemovedMaskedDataset(data.Dataset):
                 T.ToTensor(),
                 T.Normalize(mean=[0.5], std=[0.5])
             ])
-
-    def mask_random(self, image, occlusion_object=None, ratio_height=0.2, ratio_width= 0.2):
+    
+    def mask_random(self, image, occlusion_object=None, ratio_height=-1):
         if ratio_height is None: 
-            ratio_height = np.clip(np.random.rand(), 0.2, 0.6)
+            ratio_height = np.clip(np.random.rand(), 0.3, 0.8)
         
-        if ratio_width is None:
-            ratio_width = np.clip(np.random.rand(), 0.2, 0.6) 
+        # if ratio_width is None:
+        #     ratio_width = np.clip(np.random.rand(), 0.1, 0.5) 
+        ratio_width = ratio_height
         
         image = np.copy(image)
+        
+
         height, width = image.shape[0], image.shape[1]
 
-        occ_height, occ_width = int(height * ratio_height), int(width * ratio_width)
+        if ratio_height == -1: 
+            occ_height, occ_width = image.shape[:2]
+            occ_height = min(height, occ_height) 
+            occ_width = min(width, occ_width)
+        else:
+            occ_height, occ_width = int(height * ratio_height), int(width * ratio_width)
 
         row_start = np.random.randint(0, height - int(height * ratio_height))
         row_end = min(row_start + occ_height, height)
@@ -78,37 +100,39 @@ class FaceRemovedMaskedDataset(data.Dataset):
         col_end = min(col_start + occ_width, width)
 
         if occlusion_object is not None:
+            
             occlusion_object = cv2.resize(
                 occlusion_object, (occ_width, occ_height))
-            
-            masked_occlu = np.sum(occlusion_object, axis=2)
-            masked_occlu = np.where(masked_occlu == 0, 0, 1)
-            masked_occlu = np.repeat(np.expand_dims(masked_occlu, 2), 3, axis=2)
+            occlu_image, mask = occlusion_object[:, :, :3], occlusion_object[:, :, 3:]
+            occlu_image = occlu_image[:, :, ::-1]
 
-            image[row_start:row_end, col_start:col_end, :] = occlusion_object * \
-                masked_occlu + image[row_start:row_end,
-                                    col_start:col_end, :] * (1 - masked_occlu)
+            image[row_start:row_end, col_start:col_end, :] = occlu_image * \
+                mask + image[row_start:row_end,
+                                    col_start:col_end, :] * (1 - mask)
         else:
             occlusion_noise = np.random.rand(occ_height, occ_width, 3)
             occlusion_noise = np.array(occlusion_noise * 255, dtype=np.uint8)
             image[row_start:row_end, col_start:col_end, :] = occlusion_noise
 
         return image
-
-
+    
     def augment_occlusion(self, image):
-        mask_image = cv2.imread(os.path.join(self.path_occlusion_object, random.choice(
-            os.listdir(self.path_occlusion_object))))
-        mask_image = cv2.cvtColor(mask_image, cv2.COLOR_BGR2RGB)
+
+        # for 4 channels npy
+        mask_image = np.load(os.path.join(self.path_occlusion_object, random.choice(self.list_path_occlusion_object)))
         
-        image_augment = self.mask_random(image, mask_image, ratio_height= None, ratio_width= None)
+        # for image
+        # mask_image = cv2.imread(os.path.join(self.path_occlusion_object, random.choice(self.list_path_occlusion_object)))
+        # mask_image = cv2.cvtColor(mask_image, cv2.COLOR_BGR2RGB)
+        
+        image_augment = self.mask_random(image, mask_image, ratio_height= None)
         image_augment = Image.fromarray(image_augment)
 
         return image_augment
 
     def augment_gauss(self, image):
         
-        image_augment = self.mask_random(image, occlusion_object= None, ratio_height= None, ratio_width= None)
+        image_augment = self.mask_random(image, occlusion_object=None, ratio_height= None)
         image_augment = Image.fromarray(image_augment)
         return image_augment
 
