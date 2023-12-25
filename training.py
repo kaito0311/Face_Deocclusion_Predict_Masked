@@ -102,7 +102,7 @@ def generator_loss(disc_out_front, disc_out_rot, feat_occlu, out_occlu, feat_non
 
     if step < cfg.stage_1_iters:
         total_loss = pixel_loss / cfg.PIXEL_LOSS_WEIGHT + 0.1*perceptual_loss / \
-            cfg.PERCEPTUAL_LOSS_WEIGHT  # L1 + perceptual loss only
+            cfg.PERCEPTUAL_LOSS_WEIGHT  + gan_loss # L1 + perceptual loss only
 
     else:
         total_loss = gan_loss \
