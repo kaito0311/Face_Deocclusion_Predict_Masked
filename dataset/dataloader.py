@@ -59,10 +59,9 @@ class FaceRemovedMaskedDataset(data.Dataset):
         self.total_occlu = len(self.list_img_occlu)
         self.total_non_occlu = len(self.list_img_non_occlu)
 
-        if self.is_train == "train":
+        if self.is_train:
             self.transforms = T.Compose([
                 T.Resize((cfg.size_image, cfg.size_image)),
-                T.RandomHorizontalFlip(),
                 T.ToTensor(),
                 T.Normalize(mean=[0.5], std=[0.5])
             ])
