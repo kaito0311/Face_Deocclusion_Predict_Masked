@@ -92,11 +92,23 @@ class FaceDataset(data.Dataset):
                              col_start:col_end, :] * (1 - mask)
         else:
             occlusion_noise = np.random.rand(occ_height, occ_width, 3)
-            occlusion_noise = np.array(occlusion_noise)
+            occlusion_noise = np.array(occlusion_noise * 255, dtype=np.uint8)
             image[row_start:row_end, col_start:col_end, :] = occlusion_noise
 
         return image
-    
+
+
+    def augment_gauss(self, image):
+        image_augment = self.mask_random(image, occlusion_object=None, ratio_height=None)
+        
+        mask = np.where(np.array(image) != np.array(image_augment), 1, 0)
+        mask = np.array(mask * 255., dtype= np.uint8)
+        
+        image_augment = Image.fromarray(image_augment)
+        mask = Image.fromarray(mask) 
+
+        return mask, image_augment
+
     def augment_occlusion(self, image):
 
         # for 4 channels npy
@@ -124,6 +136,8 @@ class FaceDataset(data.Dataset):
 
         if np.random.rand() < self.ratio_occlu: 
             mask, occlu_image = self.augment_occlusion(image) 
+        elif np.random.random() < cfg.noised_mask_ratio_non_occlu: 
+            mask, occlu_image = self.augment_gauss(image) 
         else: 
             occlu_image = image.copy()
             mask = None 
@@ -150,8 +164,6 @@ class FaceDataset(data.Dataset):
     def __len__(self):
         return len(self.list_img)
  
-    
-
 
 class FaceRemovedMaskedDataset(data.Dataset):
     def __init__(self, list_name_data_occlusion, list_name_data_non_occlusion, root_dir,

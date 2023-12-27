@@ -41,14 +41,14 @@ def discriminator_loss(disc_out_res, disc_real_image):
     fake_loss = 0
     for ix in range(len(disc_out_res)):
         com_restore = disc_out_res[ix].view(B, -1)
-        com_target_front = disc_real_image[ix].view(B, -1)
+        com_target_real = disc_real_image[ix].view(B, -1)
         mul = 1.0 if ix == 0 else 0.5
         # real_loss += mul * \
         #     loss_object(com_target_front, torch.ones_like(com_target_front))
         # fake_loss += mul * (loss_object(com_restore, torch.zeros_like(com_restore)))
 
         real_loss += mul * \
-            gan_loss_obj(com_target_front, target_is_real=True, is_disc=True)
+            gan_loss_obj(com_target_real, target_is_real=True, is_disc=True)
         fake_loss += mul * \
             (gan_loss_obj(com_restore, target_is_real=False, is_disc=True))
 
@@ -141,9 +141,6 @@ def eval(step):
         file.write(str(step) + "\n")
     file.close()
 
-    non_occlu_val_iter = iter(non_occlu_val_loader)
-    occlu_val_iter = iter(occlu_val_loader)
-
 
     for i, batch in enumerate(non_occlu_val_loader):
         mask, augment_image, ori_image = batch
@@ -153,8 +150,10 @@ def eval(step):
 
 
         with torch.no_grad():
-            _, out_rot = model_generator(augment_image)
+            mask_predict, out_rot = model_generator.predict(augment_image)
             mask = mask.detach().cpu().numpy() 
+            mask_predict = mask_predict.detach().cpu().numpy() 
+            mask_predict = np.repeat(mask_predict, 3, axis=1)
             augment_image = augment_image.detach().cpu().numpy() 
             ori_image = ori_image.detach().cpu().numpy()
             restore_image = out_rot.detach().cpu().numpy()  
@@ -164,8 +163,9 @@ def eval(step):
             save_res = np.array(127.5 * (restore_image[idx] + 1.0), dtype= np.uint8)
             save_ori = np.array(127.5 * (ori_image[idx] + 1.0), dtype= np.uint8)
             save_mask= np.array(255. * mask[idx], dtype= np.uint8)
+            save_mask_predict = np.array(255. * mask_predict[idx], dtype= np.uint8)
             img = np.concatenate(
-                [save_ori, save_augment, save_res, save_mask], axis=2)
+                [save_ori, save_augment, save_res, save_mask, save_mask_predict], axis=2)
             img = np.transpose(img, (1, 2, 0))
             cv2.imwrite(os.path.join(vis_folder, "vis_{}.jpg".format(
                 counter + idx)), cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
@@ -179,8 +179,10 @@ def eval(step):
 
 
         with torch.no_grad():
-            _, out_rot = model_generator(augment_image)
+            mask_predict, out_rot = model_generator.predict(augment_image)
             mask = mask.detach().cpu().numpy() 
+            mask_predict = mask_predict.detach().cpu().numpy() 
+            mask_predict = np.repeat(mask_predict, 3, axis=1)
             augment_image = augment_image.detach().cpu().numpy() 
             ori_image = ori_image.detach().cpu().numpy()
             restore_image = out_rot.detach().cpu().numpy()  
@@ -190,8 +192,9 @@ def eval(step):
             save_res = np.array(127.5 * (restore_image[idx] + 1.0), dtype= np.uint8)
             save_ori = np.array(127.5 * (ori_image[idx] + 1.0), dtype= np.uint8)
             save_mask= np.array(255. * mask[idx], dtype= np.uint8)
+            save_mask_predict = np.array(255. * mask_predict[idx], dtype= np.uint8)
             img = np.concatenate(
-                [save_ori, save_augment, save_res, save_mask], axis=2)
+                [save_ori, save_augment, save_res, save_mask, save_mask_predict], axis=2)
             img = np.transpose(img, (1, 2, 0))
             cv2.imwrite(os.path.join(vis_folder, "vis_{}.jpg".format(
                 counter + idx)), cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
@@ -202,6 +205,7 @@ def eval(step):
 
 def train():
     step = cfg.START_STEP
+    is_batch_occlu = False
     print("Start step: ", step)
     for epoch in range(0, cfg.epoches):
 
@@ -221,13 +225,13 @@ def train():
         print("EPOCH : " + str(epoch))
 
         i = 0
-        is_batch_occlu = True
         non_occlu_train_iter = iter(non_occlu_train_loader)
         occlu_train_iter = iter(occlu_train_loader)
 
         while True:
             # Define batch
             try:
+                i += 1 
                 if is_batch_occlu:
                     batch = next(occlu_train_iter)
                 else:
@@ -241,9 +245,14 @@ def train():
                 continue
 
             step += 1
-            if step % 100 == 0: 
-                is_batch_occlu = not is_batch_occlu
-                print("[INFO] Change loss: ", is_batch_occlu)
+
+            if is_batch_occlu: 
+                if cfg.occlu_nature > 0 and step % cfg.occlu_nature == 0: 
+                    is_batch_occlu = not is_batch_occlu 
+            elif not is_batch_occlu: 
+                if cfg.non_occlu_augment > 0 and step % cfg.non_occlu_augment == 0: 
+                    is_batch_occlu = not is_batch_occlu
+
             lr = scheduler_gen(step)
             _ = scheduler_disc(step)
 
@@ -479,7 +488,7 @@ if __name__ == "__main__":
         params_gen.append(p)
 
     print("[INFO] number trained params gen: ", len(params_gen))
-    params_disc = [p for name, p in model_generator.named_parameters()]
+    params_disc = [p for name, p in model_disciminator.named_parameters()]
     optimizer_gen = torch.optim.AdamW(
         params_gen, lr=cfg.lr_gen, weight_decay=cfg.wd)
     optimizer_disc = torch.optim.AdamW(
