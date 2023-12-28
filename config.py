@@ -23,11 +23,11 @@ class cfg:
     # Config
     valid_every = 1000
     print_every = 50
-    batch_size = 8
+    batch_size = 4
     lr_gen = 1e-4
     lr_disc = 1e-4
     wd = 0.01
-    START_STEP = 54000
+    START_STEP = 98000
     stage_1_iters = 0
     warmup_length = 50000  # 50k iter
     epoches = 100
@@ -41,5 +41,5 @@ class cfg:
     valid_data_occlu = '/home1/data/tanminh/NML-Face/list_name_file/list_name_val_masked.npy'
     valid_data_non_occlu = '/home1/data/tanminh/NML-Face/list_name_file/list_name_val_no_masked.npy'
     training_dir = 'all_experiments/alter_training/firt_experiment'
-    pretrained_g = "all_experiments/alter_training/firt_experiment/ckpt/backup/ckpt_gen_backup_56k.pt"
-    pretrained_d = "all_experiments/alter_training/firt_experiment/ckpt/backup/ckpt_dis_backup_56k.pt"
+    pretrained_g = "all_experiments/alter_training/firt_experiment/ckpt/ckpt_gen_lastest.pt"
+    pretrained_d = "all_experiments/alter_training/firt_experiment/ckpt/ckpt_dis_lastest.pt"
