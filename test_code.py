@@ -1,16 +1,48 @@
 import os 
 
+import cv2
 import torch 
 import numpy as np 
 from torch.utils.data import Dataset, DataLoader
 
-from config import cfg
+from config import cfg, cfg_sam
 from models.oagan.generator import OAGAN_Generator 
 from dataset.dataloader import FaceRemovedMaskedDataset, FaceDataset
 
 
+from model_sam import Model 
 
 
+sam = Model(cfg_sam)
+sam.setup() 
+sam.to("cuda")
+sam.eval() 
+
+embed_text = torch.from_numpy(np.load("pretrained/feature_text.npy"))
+embed_text = embed_text.to("cuda")
+
+
+image = cv2.imread("images/val/masked/100000166523059_face_3.jpg")
+image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+image = cv2.resize(image, (1024, 1024))
+input_tensor = torch.from_numpy(np.array(image/ 255.0, np.float32) )
+input_tensor = torch.permute(input_tensor, (2, 0, 1))
+input_tensor = torch.unsqueeze(input_tensor, 0)
+print(input_tensor.shape)
+input_tensor = input_tensor.to("cuda")
+
+pred_mask, _ = sam(input_tensor, None,embed_text) 
+
+print(pred_mask[0].shape)
+np.save("pred_mask2.npy", pred_mask[0].detach().cpu().numpy())
+pred_mask = np.load("pred_mask2.npy")
+pred_mask = 1 / (1 + np.exp(-pred_mask))
+
+pred_mask = np.array(pred_mask * 255., dtype=np.uint8)
+
+cv2.imwrite("pred_mask.jpg", np.repeat(np.expand_dims(pred_mask[0], 2), 3, axis=2))
+
+exit()
 
 
 dataset = FaceDataset(

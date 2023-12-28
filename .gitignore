@@ -6,3 +6,4 @@ mlruns/
 images/
 all_experiments/
 face_processor_python/
+pretrained/

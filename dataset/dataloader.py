@@ -51,6 +51,10 @@ class FaceDataset(data.Dataset):
             T.ToTensor(),
             T.Normalize(mean=[0.5], std=[0.5])
         ])
+        self.sam_transform = T.Compose([
+            T.Resize((1024,1024)),
+            T.ToTensor()
+        ])
         
     def mask_random(self, image, occlusion_object=None, ratio_height=-1):
         if ratio_height is None:
@@ -151,6 +155,7 @@ class FaceDataset(data.Dataset):
                     mask = self.horizontal_flip(mask)
                 
             
+        occlu_image_sam_norm = self.sam_transform(occlu_image)
         occlu_image = self.transforms(occlu_image) 
         image = self.transforms(image) 
     
@@ -159,7 +164,7 @@ class FaceDataset(data.Dataset):
         else: 
             mask = self.transforms_mask(mask)
         
-        return mask, occlu_image, image
+        return mask, occlu_image, occlu_image_sam_norm, image
 
     def __len__(self):
         return len(self.list_img)

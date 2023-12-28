@@ -23,11 +23,11 @@ class cfg:
     # Config
     valid_every = 1000
     print_every = 50
-    batch_size = 8
+    batch_size = 2
     lr_gen = 1e-4
     lr_disc = 1e-4
     wd = 0.01
-    START_STEP = 54000
+    START_STEP = 0
     stage_1_iters = 0
     warmup_length = 50000  # 50k iter
     epoches = 100
@@ -40,6 +40,47 @@ class cfg:
     train_data_non_occlu = '/home1/data/tanminh/NML-Face/list_name_file/list_name_train_no_masked.npy'
     valid_data_occlu = '/home1/data/tanminh/NML-Face/list_name_file/list_name_val_masked.npy'
     valid_data_non_occlu = '/home1/data/tanminh/NML-Face/list_name_file/list_name_val_no_masked.npy'
-    training_dir = 'all_experiments/alter_training/firt_experiment'
-    pretrained_g = "all_experiments/alter_training/firt_experiment/ckpt/backup/ckpt_gen_backup_56k.pt"
-    pretrained_d = "all_experiments/alter_training/firt_experiment/ckpt/backup/ckpt_dis_backup_56k.pt"
+    training_dir = 'all_experiments/sam_training/firt_experiment'
+    pretrained_g = None
+    pretrained_d = None
+
+
+from box import Box
+
+config = {
+    "num_devices": 1,
+    "batch_size": 4,
+    "num_workers": 4,
+    "num_epochs": 200,
+    "eval_interval": 50,
+    "save_every": 250,
+    "out_dir": "out/training",
+    "opt": {
+        "learning_rate": 8e-4,
+        "weight_decay": 1e-4,
+        "decay_factor": 10,
+        "steps": [60000, 86666],
+        "warmup_steps": 250,
+    },
+    "model": {
+        "type": 'vit_t',
+        "checkpoint": "pretrained/step-001500-f10.97-ckpt.pth",
+        "freeze": {
+            "image_encoder": True,
+            "prompt_encoder": False,
+            "mask_decoder": False,
+        },
+    },
+    "dataset": {
+        "train": {
+            "root_dir": "datasets/val2017",
+            "annotation_file": "datasets/annotations/instances_val2017.json"
+        },
+        "val": {
+            "root_dir": "datasets/val2017",
+            "annotation_file": "datasets/annotations/instances_val2017.json"
+        }
+    }
+}
+
+cfg_sam = Box(config)

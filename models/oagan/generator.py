@@ -2,6 +2,8 @@ import os
 
 import torch
 import torch.nn as nn
+import numpy as np 
+from torchvision import transforms as T
 
 from models.backbones.imintv5 import make_decoder_layer, ConvBNBlock
 from models.backbones.imintv5_custom import iresnet160_custom
@@ -151,17 +153,26 @@ class DeocclusionFaceGenerator(torch.nn.Module):
 
 
 class OAGAN_Generator(torch.nn.Module):
-    def __init__(self, pretrained_encoder, arch_encoder, freeze_encoder=True, *args, **kwargs) -> None:
+    def __init__(self, pretrained_encoder, arch_encoder, freeze_encoder=True, image_size = 112, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-
-        self.predict_masked_model = PredictMasked(conv_dim=64, repeat_num=6)
+        from model_sam import Model
+        from config import cfg_sam
+        self.predict_masked_model = Model(cfg_sam)
+        self.predict_masked_model.setup()
         self.deocclusion_model = DeocclusionFaceGenerator(
             pretrained_encoder=pretrained_encoder, arch_encoder=arch_encoder, freeze_encoder=freeze_encoder)
+        self.embed_text = torch.from_numpy(np.load("pretrained/feature_text.npy"))
+        self.embed_text = self.embed_text.to("cuda" if torch.cuda.is_available() else "cpu")
+        self.resize = T.Compose([T.Resize((image_size, image_size))])
 
-    def forward(self, image):
-        masked = self.predict_masked_model(image)
-        feature, restore_image = self.deocclusion_model(image, masked)
-        restore_image = restore_image * masked + image * (1.0 - masked)
+
+    def forward(self, sam_image, unet_image):
+        masked, _ = self.predict_masked_model(sam_image, None, self.embed_text)
+        list_stack = [masked[i][0:1, :, :].unsqueeze(0) for i in range(len(masked))]
+        masked = torch.vstack(list_stack)
+        masked = self.resize(masked)
+        feature, restore_image = self.deocclusion_model(unet_image, masked)
+        restore_image = restore_image * masked + unet_image * (1.0 - masked)
         return feature, restore_image
 
     @torch.no_grad()

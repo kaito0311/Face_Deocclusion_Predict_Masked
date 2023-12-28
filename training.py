@@ -264,13 +264,14 @@ def train():
             # Optimize generator
             optimizer_gen.zero_grad()
 
-            mask, augment_image, ori_image = batch
+            mask, augment_image, augment_sam, ori_image = batch
             mask = mask.to(cfg.device)
             augment_image = augment_image.to(cfg.device)
             ori_image = ori_image.to(cfg.device)
+            augment_sam = augment_sam.to(cfg.device)
 
             # Get generator output
-            _, out_restore = model_generator(augment_image)
+            _, out_restore = model_generator(augment_sam, augment_image)
             # Get disciminator output
             disc_restore = model_disciminator(out_restore)
             # Get generator loss
