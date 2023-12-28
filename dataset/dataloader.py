@@ -54,7 +54,7 @@ class FaceDataset(data.Dataset):
         
     def mask_random(self, image, occlusion_object=None, ratio_height=-1):
         if ratio_height is None:
-            ratio_height = np.clip(np.random.rand(), 0.3, 0.8)
+            ratio_height = np.clip(np.random.rand(), 0.3, 0.65)
 
         # if ratio_width is None:
         #     ratio_width = np.clip(np.random.rand(), 0.1, 0.5)
@@ -136,8 +136,8 @@ class FaceDataset(data.Dataset):
 
         if np.random.rand() < self.ratio_occlu: 
             mask, occlu_image = self.augment_occlusion(image) 
-        elif np.random.random() < cfg.noised_mask_ratio_non_occlu: 
-            mask, occlu_image = self.augment_gauss(image) 
+        # elif np.random.random() < cfg.noised_mask_ratio_non_occlu: 
+        #     mask, occlu_image = self.augment_gauss(image) 
         else: 
             occlu_image = image.copy()
             mask = None 

@@ -43,14 +43,14 @@ def discriminator_loss(disc_out_res, disc_real_image):
         com_restore = disc_out_res[ix].view(B, -1)
         com_target_real = disc_real_image[ix].view(B, -1)
         mul = 1.0 if ix == 0 else 0.5
-        # real_loss += mul * \
-        #     loss_object(com_target_front, torch.ones_like(com_target_front))
-        # fake_loss += mul * (loss_object(com_restore, torch.zeros_like(com_restore)))
-
         real_loss += mul * \
-            gan_loss_obj(com_target_real, target_is_real=True, is_disc=True)
-        fake_loss += mul * \
-            (gan_loss_obj(com_restore, target_is_real=False, is_disc=True))
+            loss_object(com_target_real, torch.ones_like(com_target_real))
+        fake_loss += mul * (loss_object(com_restore, torch.zeros_like(com_restore)))
+
+        # real_loss += mul * \
+        #     gan_loss_obj(com_target_real, target_is_real=True, is_disc=True)
+        # fake_loss += mul * \
+        #     (gan_loss_obj(com_restore, target_is_real=False, is_disc=True))
 
     real_loss /= len(disc_out_res)
     fake_loss /= len(disc_out_res)
@@ -246,12 +246,12 @@ def train():
 
             step += 1
 
-            if is_batch_occlu: 
-                if cfg.occlu_nature > 0 and step % cfg.occlu_nature == 0: 
-                    is_batch_occlu = not is_batch_occlu 
-            elif not is_batch_occlu: 
-                if cfg.non_occlu_augment > 0 and step % cfg.non_occlu_augment == 0: 
-                    is_batch_occlu = not is_batch_occlu
+            # if is_batch_occlu: 
+            #     if cfg.occlu_nature > 0 and step % cfg.occlu_nature == 0: 
+            #         is_batch_occlu = not is_batch_occlu 
+            # elif not is_batch_occlu: 
+            #     if cfg.non_occlu_augment > 0 and step % cfg.non_occlu_augment == 0: 
+            #         is_batch_occlu = not is_batch_occlu
 
             lr = scheduler_gen(step)
             _ = scheduler_disc(step)
@@ -336,6 +336,7 @@ def train():
                 print('*********************')
                 print('avg_gen_loss = ', tavg_gen_loss)
                 print('avg_disc_loss = ', tavg_disc_loss)
+                print('is_batch_occlu = ', is_batch_occlu)
 
                 print('lr_gen = ', get_lr(optimizer_gen))
                 print('lr_disc = ', get_lr(optimizer_disc))
