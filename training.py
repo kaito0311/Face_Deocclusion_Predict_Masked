@@ -143,14 +143,14 @@ def eval(step):
 
 
     for i, batch in enumerate(non_occlu_val_loader):
-        mask, augment_image, ori_image = batch
-        mask = mask.to(cfg.device) 
-        augment_image = augment_image.to(cfg.device) 
+        mask, augment_image, augment_sam, ori_image = batch
+        mask = mask.to(cfg.device)
+        augment_image = augment_image.to(cfg.device)
         ori_image = ori_image.to(cfg.device)
-
+        augment_sam = augment_sam.to(cfg.device)
 
         with torch.no_grad():
-            mask_predict, out_rot = model_generator.predict(augment_image)
+            mask_predict, out_rot = model_generator.predict(augment_sam, augment_image)
             mask = mask.detach().cpu().numpy() 
             mask_predict = mask_predict.detach().cpu().numpy() 
             mask_predict = np.repeat(mask_predict, 3, axis=1)
@@ -172,14 +172,14 @@ def eval(step):
         counter += len(ori_image)
         
     for i, batch in enumerate(occlu_val_loader):
-        mask, augment_image, ori_image = batch
-        mask = mask.to(cfg.device) 
-        augment_image = augment_image.to(cfg.device) 
+        mask, augment_image, augment_sam, ori_image = batch
+        mask = mask.to(cfg.device)
+        augment_image = augment_image.to(cfg.device)
         ori_image = ori_image.to(cfg.device)
-
+        augment_sam = augment_sam.to(cfg.device)
 
         with torch.no_grad():
-            mask_predict, out_rot = model_generator.predict(augment_image)
+            mask_predict, out_rot = model_generator.predict(augment_sam, augment_image)
             mask = mask.detach().cpu().numpy() 
             mask_predict = mask_predict.detach().cpu().numpy() 
             mask_predict = np.repeat(mask_predict, 3, axis=1)
