@@ -13,6 +13,12 @@ from dataset.dataloader import FaceRemovedMaskedDataset, FaceDataset
 from model_sam import Model 
 
 
+
+weight = torch.load("all_experiments/sam_training/firt_experiment/ckpt/ckpt_gen_lastest.pt")
+print(weight.keys())
+
+
+exit()
 sam = Model(cfg_sam)
 sam.setup() 
 sam.to("cuda")
