@@ -9,9 +9,11 @@ import gradio as gr
 
 from face_processor_python.mfp import FaceDetector, Aligner
 
+id_model = -1 
+model = None
 
 def infer_face_de_occlusion(image, kind_model=1):
-
+    global id_model, model 
     kind_model = int(kind_model)
     transforms = T.Compose([
         T.Resize((112, 112)),
@@ -48,17 +50,18 @@ def infer_face_de_occlusion(image, kind_model=1):
     tensor_original = torch.unsqueeze(tensor_original, 0)
     tensor_sam = torch.unsqueeze(tensor_sam, 0)
     print("tensor shape:", tensor.shape)
-    model = OAGAN_Generator(
-        pretrained_encoder=None,
-        arch_encoder="r160",
-        freeze_encoder=True
-    )
-    model.to("cuda")
+
     if kind_model == 0:
-        model.load_state_dict(torch.load(
-            "all_experiments/sam_training/firt_experiment/ckpt/ckpt_gen_backup.pt", map_location="cuda"))
-    # model.predict_masked_model.to("cuda")
-    model.predict_masked_model = model.predict_masked_model.to("cuda")
+        if kind_model != id_model: 
+            model = OAGAN_Generator(
+                pretrained_encoder=None,
+                arch_encoder="r160",
+                freeze_encoder=True
+            )
+            model.to("cuda")
+            model.load_state_dict(torch.load(
+                "all_experiments/sam_training/firt_experiment/ckpt/ckpt_gen_backup.pt", map_location="cuda"))
+            id_model = kind_model
     model = model.to("cuda")
     model.eval()
 
