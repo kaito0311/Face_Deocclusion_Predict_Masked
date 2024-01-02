@@ -10,9 +10,9 @@ import gradio as gr
 from face_processor_python.mfp import FaceDetector, Aligner 
 
 id_model = -1
-
+model = None 
 def infer_face_de_occlusion(image, kind_model=1):
-    global id_model
+    global id_model, model
     kind_model = int(kind_model)
     transforms = T.Compose([
                 T.Resize((112,112)),
@@ -42,7 +42,6 @@ def infer_face_de_occlusion(image, kind_model=1):
     tensor = torch.unsqueeze(tensor, 0)
     tensor_original = torch.unsqueeze(tensor_original, 0)
     print("tensor shape:", tensor.shape)
-    model = None
     
     if kind_model == 0: 
         if kind_model != id_model:
