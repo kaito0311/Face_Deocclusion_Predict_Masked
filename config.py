@@ -10,7 +10,7 @@ class cfg:
 
     # iter traning
     non_occlu_augment = 10000 
-    occlu_nature = 1000
+    occlu_nature = 2000
 
     # TM-NOTE: train of phase 1 -> only pixel loss
     GAN_LOSS_WEIGHT = 0.75
@@ -27,7 +27,7 @@ class cfg:
     lr_gen = 1e-4
     lr_disc = 1e-4
     wd = 0.01
-    START_STEP = 98000
+    START_STEP = 288000
     stage_1_iters = 0
     warmup_length = 50000  # 50k iter
     epoches = 100

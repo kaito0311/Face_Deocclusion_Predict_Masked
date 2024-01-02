@@ -206,6 +206,7 @@ def eval(step):
 def train():
     step = cfg.START_STEP
     is_batch_occlu = False
+    number_switch_batch = cfg.non_occlu_augment
     print("Start step: ", step)
     for epoch in range(0, cfg.epoches):
 
@@ -224,7 +225,7 @@ def train():
         avg_disc_loss = 0
         print("EPOCH : " + str(epoch))
 
-        i = 0
+        i = 1
         non_occlu_train_iter = iter(non_occlu_train_loader)
         occlu_train_iter = iter(occlu_train_loader)
 
@@ -246,12 +247,13 @@ def train():
 
             step += 1
 
-            # if is_batch_occlu: 
-            #     if cfg.occlu_nature > 0 and step % cfg.occlu_nature == 0: 
-            #         is_batch_occlu = not is_batch_occlu 
-            # elif not is_batch_occlu: 
-            #     if cfg.non_occlu_augment > 0 and step % cfg.non_occlu_augment == 0: 
-            #         is_batch_occlu = not is_batch_occlu
+            if i % number_switch_batch == 0: 
+                if is_batch_occlu: 
+                    number_switch_batch = cfg.non_occlu_augment 
+                    is_batch_occlu = False 
+                elif not is_batch_occlu:
+                    number_switch_batch = cfg.occlu_nature
+                    is_batch_occlu = True 
 
             lr = scheduler_gen(step)
             _ = scheduler_disc(step)

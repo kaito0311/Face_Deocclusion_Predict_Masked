@@ -47,7 +47,7 @@ def infer_face_de_occlusion(image, kind_model=1):
     )
     model.to("cpu")
     if kind_model == 0: 
-        model.load_state_dict(torch.load("all_experiments/new_experiment2/ckpt/ckpt_gen_lastest.pt", map_location="cpu"))
+        model.load_state_dict(torch.load("all_experiments/alter_training/firt_experiment/ckpt/ckpt_gen_backup.pt", map_location="cpu"))
 
     model.to("cpu")
     model.eval()
