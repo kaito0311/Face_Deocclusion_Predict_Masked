@@ -5,6 +5,7 @@ import torch.nn as nn
 
 from models.backbones.imintv5 import make_decoder_layer, ConvBNBlock
 from models.backbones.imintv5_custom import iresnet160_custom
+from models.pre_deocclusion.de_occlu_syn import FaceDeocclusionModel
 
 
 class ResidualBlock(nn.Module):
@@ -151,22 +152,31 @@ class DeocclusionFaceGenerator(torch.nn.Module):
 
 
 class OAGAN_Generator(torch.nn.Module):
-    def __init__(self, pretrained_encoder, arch_encoder, freeze_encoder=True, *args, **kwargs) -> None:
+    def __init__(self, pretrained_encoder, pretrain_deocclu_model, freeze_deocclu_model, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         self.predict_masked_model = PredictMasked(conv_dim=64, repeat_num=6)
-        self.deocclusion_model = DeocclusionFaceGenerator(
-            pretrained_encoder=pretrained_encoder, arch_encoder=arch_encoder, freeze_encoder=freeze_encoder)
+        self.deocclusion_model = FaceDeocclusionModel()
+        if pretrain_deocclu_model is not None: 
+            self.deocclusion_model.load_state_dict(torch.load(pretrain_deocclu_model)) 
+        
+        if freeze_deocclu_model:
+            if self.deocclusion_model: 
+                self.deocclusion_model.eval() 
+                for p in self.deocclusion_model.parameters():
+                    p.requires_grad = False 
+        
+
 
     def forward(self, image):
         masked = self.predict_masked_model(image)
-        feature, restore_image = self.deocclusion_model(image, masked)
+        feature, restore_image = self.deocclusion_model(image * (1 - masked))
         restore_image = restore_image * masked + image * (1.0 - masked)
         return feature, restore_image
 
     @torch.no_grad()
-    def predict(self, image): 
+    def predict(self, image):
         masked = self.predict_masked_model(image)
-        feature, restore_image = self.deocclusion_model(image, masked)
+        feature, restore_image = self.deocclusion_model(image * (1 - masked))
         restore_image = restore_image * masked + image * (1.0 - masked)
         return masked, restore_image

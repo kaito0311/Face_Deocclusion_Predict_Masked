@@ -247,13 +247,13 @@ def train():
 
             step += 1
 
-            if i % number_switch_batch == 0: 
-                if is_batch_occlu: 
-                    number_switch_batch = cfg.non_occlu_augment 
-                    is_batch_occlu = False 
-                elif not is_batch_occlu:
-                    number_switch_batch = cfg.occlu_nature
-                    is_batch_occlu = True 
+            # if i % number_switch_batch == 0: 
+            #     if is_batch_occlu: 
+            #         number_switch_batch = cfg.non_occlu_augment 
+            #         is_batch_occlu = False 
+            #     elif not is_batch_occlu:
+            #         number_switch_batch = cfg.occlu_nature
+            #         is_batch_occlu = True 
 
             lr = scheduler_gen(step)
             _ = scheduler_disc(step)
@@ -414,8 +414,8 @@ if __name__ == "__main__":
 
     model_generator = OAGAN_Generator(
         pretrained_encoder="/home1/data/tanminh/NML-Face/pretrained/r160_imintv4_statedict.pth",
-        arch_encoder="r160",
-        freeze_encoder=True
+        pretrain_deocclu_model= "/home1/data/tanminh/Face_Deocclusion_Predict_Masked/pretrained/ckpt_gen_lastest.pt",
+        freeze_deocclu_model= True
     )
     model_disciminator = Discriminator(
         input_size=cfg.size_image, enable_face_component_loss=cfg.enable_face_component_loss)

@@ -27,10 +27,10 @@ class cfg:
     lr_gen = 1e-4
     lr_disc = 1e-4
     wd = 0.01
-    START_STEP = 288000
+    START_STEP = 0
     stage_1_iters = 0
     warmup_length = 50000  # 50k iter
-    epoches = 100
+    epoches = 32
     num_workers = 6
     enable_face_component_loss = True
 
@@ -40,6 +40,6 @@ class cfg:
     train_data_non_occlu = '/home1/data/tanminh/NML-Face/list_name_file/list_name_train_no_masked.npy'
     valid_data_occlu = '/home1/data/tanminh/NML-Face/list_name_file/list_name_val_masked.npy'
     valid_data_non_occlu = '/home1/data/tanminh/NML-Face/list_name_file/list_name_val_no_masked.npy'
-    training_dir = 'all_experiments/alter_training/firt_experiment'
-    pretrained_g = "all_experiments/alter_training/firt_experiment/ckpt/ckpt_gen_lastest.pt"
-    pretrained_d = "all_experiments/alter_training/firt_experiment/ckpt/ckpt_dis_lastest.pt"
+    training_dir = 'all_experiments/pretrained_deocclu_training/firt_experiment'
+    pretrained_g = None
+    pretrained_d = None

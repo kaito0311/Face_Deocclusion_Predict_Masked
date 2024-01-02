@@ -8,8 +8,19 @@ from config import cfg
 from models.oagan.generator import OAGAN_Generator 
 from dataset.dataloader import FaceRemovedMaskedDataset, FaceDataset
 
+from models.pre_deocclusion.de_occlu_syn import FaceDeocclusionModel 
 
 
+model= FaceDeocclusionModel()
+
+weight = (torch.load("pretrained/ckpt_gen_lastest.pt", map_location="cpu"))
+
+model.load_state_dict(weight)
+# print(list(model.state_dict().keys())[:100])
+# print(list(weight.keys())[:100])
+
+
+exit()
 
 
 
