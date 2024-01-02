@@ -52,6 +52,15 @@ def infer_face_de_occlusion(image, kind_model=1):
             )
             model.load_state_dict(torch.load("all_experiments/alter_training/firt_experiment/ckpt/ckpt_gen_backup.pt", map_location="cpu"))
             id_model = kind_model
+    elif kind_model == 1:
+        if kind_model != id_model:
+            model = OAGAN_Generator(
+                pretrained_encoder=None,
+                arch_encoder="r160",
+                freeze_encoder= True
+            )
+            model.load_state_dict(torch.load("all_experiments/alter_training/firt_experiment/ckpt/backup/ckpt_271k/ckpt_gen_lastest.pt", map_location="cpu"))
+            id_model = kind_model
 
     model.to("cpu")
     model.eval()
@@ -88,6 +97,6 @@ demo = gr.Interface(
     examples= []
 )
 
-demo.launch(show_tips=True, server_name='10.9.3.239', server_port=5136)
+demo.launch(show_tips=True, server_name='10.9.3.239', server_port=5138)
 
 # infer_face_de_occlusion(cv2.imread("/home/data3/tanminh/NML-Face/test.jpg"))
