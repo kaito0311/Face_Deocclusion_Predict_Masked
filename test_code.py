@@ -8,14 +8,94 @@ from torch.utils.data import Dataset, DataLoader
 from config import cfg, cfg_sam
 from models.oagan.generator import OAGAN_Generator 
 from dataset.dataloader import FaceRemovedMaskedDataset, FaceDataset
-
+from face_processor_python.mfp import FaceDetector, Aligner
 
 from model_sam import Model 
 
 
 
-weight = torch.load("all_experiments/sam_training/firt_experiment/ckpt/ckpt_gen_lastest.pt")
-print(weight.keys())
+import sys
+sys.path.append("..")
+from mobile_sam import sam_model_registry, SamPredictor
+import matplotlib.pyplot as plt 
+
+
+
+
+def show_mask(mask, ax, random_color=False):
+    if random_color:
+        color = np.concatenate([np.random.random(3), np.array([0.6])], axis=0)
+    else:
+        color = np.array([30/255, 144/255, 255/255, 0.6])
+    h, w = mask.shape[-2:]
+    mask_image = mask.reshape(h, w, 1) * color.reshape(1, 1, -1)
+    ax.imshow(mask_image)
+    
+def show_box(box, ax):
+    x0, y0 = box[0], box[1]
+    w, h = box[2] - box[0], box[3] - box[1]
+    ax.add_patch(plt.Rectangle((x0, y0), w, h, edgecolor='green', facecolor=(0,0,0,0), lw=2))    
+
+
+sam_checkpoint = "pretrained/mobile_sam.pt"
+model_type = "vit_t"
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
+sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
+sam.to(device=device)
+sam.eval()
+
+predictor = SamPredictor(sam)
+
+image = cv2.imread('images/test/images (3).jpg')
+image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+# detect and align face 
+detector = FaceDetector(
+    "face_processor_python/models/retinaface_mobilev3.onnx")
+aligner = Aligner()
+faceobjects = detector.DetectFace(cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
+print((int(faceobjects[0].landmark[3].x),
+        int(faceobjects[0].landmark[3].y)))
+
+image = aligner.AlignFace(image, faceobjects[0])
+image = cv2.resize(image, (256, 256))
+
+
+predictor.set_image(image)
+
+# input_box = np.array([30, 78, 230, 158])
+# input_box = np.array([[30, 0, 230, 128]])
+
+input_boxes = torch.tensor([[0, 128, 256, 256], 
+                            [30, 0, 230, 128], 
+                            [30, 78, 230, 158]])
+input_boxes = input_boxes
+transformed_boxes = predictor.transform.apply_boxes_torch(input_boxes, image.shape[:2])
+print(input_boxes.shape)
+# masks, _, _ = predictor.predict(
+#     point_coords=None,
+#     point_labels=None,
+#     box=input_boxes,
+#     multimask_output=False,
+# )
+masks, scores, _ = predictor.predict_torch(
+    point_coords=None,
+    point_labels=None,
+    boxes=transformed_boxes,
+    multimask_output=False,
+)
+
+print(scores)
+plt.figure(figsize=(10, 10))
+plt.imshow(image)
+for mask in masks:
+    show_mask(mask[0], plt.gca())
+for box in input_boxes:
+    show_box(box, plt.gca())
+plt.axis('off')
+plt.savefig("sample.jpg")
 
 
 exit()
@@ -30,12 +110,6 @@ embed_text = embed_text.to("cuda")
 
 image = cv2.imread("images/val/masked/100000166523059_face_3.jpg")
 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-image = cv2.resize(image, (1024, 1024))
-input_tensor = torch.from_numpy(np.array(image/ 255.0, np.float32) )
-input_tensor = torch.permute(input_tensor, (2, 0, 1))
-input_tensor = torch.unsqueeze(input_tensor, 0)
-print(input_tensor.shape)
-input_tensor = input_tensor.to("cuda")
 
 pred_mask, _ = sam(input_tensor, None,embed_text) 
 

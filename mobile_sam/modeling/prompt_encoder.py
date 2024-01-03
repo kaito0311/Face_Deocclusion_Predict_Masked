@@ -59,8 +59,6 @@ class PromptEncoder(nn.Module):
         )
         self.no_mask_embed = nn.Embedding(1, embed_dim)
 
-        self.fc_text_embed = nn.Linear(512, 256)
-
     def get_dense_pe(self) -> torch.Tensor:
         """
         Returns the positional encoding used to encode point prompts,
@@ -106,9 +104,6 @@ class PromptEncoder(nn.Module):
         mask_embedding = self.mask_downscaling(masks)
         return mask_embedding
 
-    def _embed_text(self, text_embed: torch.Tensor) -> torch.Tensor: 
-        return self.fc_text_embed(text_embed)
-    
     def _get_batch_size(
         self,
         points: Optional[Tuple[torch.Tensor, torch.Tensor]],
@@ -135,7 +130,6 @@ class PromptEncoder(nn.Module):
         points: Optional[Tuple[torch.Tensor, torch.Tensor]],
         boxes: Optional[torch.Tensor],
         masks: Optional[torch.Tensor],
-        texts: Optional[torch.Tensor],
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Embeds different types of prompts, returning both sparse and dense
@@ -160,16 +154,9 @@ class PromptEncoder(nn.Module):
             coords, labels = points
             point_embeddings = self._embed_points(coords, labels, pad=(boxes is None))
             sparse_embeddings = torch.cat([sparse_embeddings, point_embeddings], dim=1)
-            print("sparse_embeddings: ", sparse_embeddings.shape)
         if boxes is not None:
             box_embeddings = self._embed_boxes(boxes)
             sparse_embeddings = torch.cat([sparse_embeddings, box_embeddings], dim=1)
-
-        if texts is not None: 
-            text_embeddings = self._embed_text(texts)
-            text_embeddings = torch.repeat_interleave(text_embeddings.unsqueeze(0), bs, 0)
-            sparse_embeddings = torch.cat([sparse_embeddings, text_embeddings], dim=1)
-            
 
         if masks is not None:
             dense_embeddings = self._embed_masks(masks)
