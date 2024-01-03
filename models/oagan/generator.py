@@ -171,12 +171,14 @@ class OAGAN_Generator(torch.nn.Module):
     def forward(self, image):
         masked = self.predict_masked_model(image)
         feature, restore_image = self.deocclusion_model(image * (1 - masked))
+        _, restore_image_wo_mask = self.deocclusion_model(image)
         restore_image = restore_image * masked + image * (1.0 - masked)
-        return feature, restore_image
+        return feature, restore_image, restore_image_wo_mask
 
     @torch.no_grad()
     def predict(self, image):
         masked = self.predict_masked_model(image)
         feature, restore_image = self.deocclusion_model(image * (1 - masked))
+        _, restore_image_wo_mask = self.deocclusion_model(image)
         restore_image = restore_image * masked + image * (1.0 - masked)
-        return masked, restore_image
+        return masked, restore_image, restore_image_wo_mask

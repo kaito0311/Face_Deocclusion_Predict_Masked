@@ -57,7 +57,7 @@ def discriminator_loss(disc_out_res, disc_real_image):
     return real_loss, fake_loss, real_loss + fake_loss
 
 
-def generator_loss(disc_restore, restore_image, ori_image, mask=None, is_batch_occlu=False, step=None):
+def generator_loss(disc_restore, restore_image, ori_image, restore_image_wo_mask, mask=None, is_batch_occlu=False, step=None):
     # Gan loss
     loss_object = torch.nn.BCEWithLogitsLoss()
     B = ori_image.size()[0]
@@ -75,7 +75,7 @@ def generator_loss(disc_restore, restore_image, ori_image, mask=None, is_batch_o
 
     # Pixel wise
     pixel_loss = cfg.PIXEL_LOSS_WEIGHT * \
-        pixel_wise(restore_image, ori_image)
+        (pixel_wise(restore_image, ori_image) + pixel_wise(restore_image, restore_image_wo_mask)) / 2 
 
     # # Identity FIXME
     id_loss = cfg.IDENTITY_LOSS_WEIGHT * \
@@ -150,22 +150,24 @@ def eval(step):
 
 
         with torch.no_grad():
-            mask_predict, out_rot = model_generator.predict(augment_image)
+            mask_predict, out_rot, out_restore_wo_mask = model_generator.predict(augment_image)
             mask = mask.detach().cpu().numpy() 
             mask_predict = mask_predict.detach().cpu().numpy() 
             mask_predict = np.repeat(mask_predict, 3, axis=1)
             augment_image = augment_image.detach().cpu().numpy() 
             ori_image = ori_image.detach().cpu().numpy()
             restore_image = out_rot.detach().cpu().numpy()  
+            restore_image_wo_mask = out_restore_wo_mask.detach().cpu().numpy()
 
         for idx in range(len(augment_image)):
             save_augment = np.array(127.5 * (augment_image[idx] + 1.0), dtype= np.uint8)
             save_res = np.array(127.5 * (restore_image[idx] + 1.0), dtype= np.uint8)
+            save_res_wo_mask = np.array(127.5 * (restore_image_wo_mask[idx] + 1.0), dtype= np.uint8)
             save_ori = np.array(127.5 * (ori_image[idx] + 1.0), dtype= np.uint8)
             save_mask= np.array(255. * mask[idx], dtype= np.uint8)
             save_mask_predict = np.array(255. * mask_predict[idx], dtype= np.uint8)
             img = np.concatenate(
-                [save_ori, save_augment, save_res, save_mask, save_mask_predict], axis=2)
+                [save_ori, save_augment, save_res, save_mask, save_mask_predict, save_res_wo_mask], axis=2)
             img = np.transpose(img, (1, 2, 0))
             cv2.imwrite(os.path.join(vis_folder, "vis_{}.jpg".format(
                 counter + idx)), cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
@@ -179,22 +181,24 @@ def eval(step):
 
 
         with torch.no_grad():
-            mask_predict, out_rot = model_generator.predict(augment_image)
+            mask_predict, out_rot, out_restore_wo_mask = model_generator.predict(augment_image)
             mask = mask.detach().cpu().numpy() 
             mask_predict = mask_predict.detach().cpu().numpy() 
             mask_predict = np.repeat(mask_predict, 3, axis=1)
             augment_image = augment_image.detach().cpu().numpy() 
             ori_image = ori_image.detach().cpu().numpy()
             restore_image = out_rot.detach().cpu().numpy()  
+            restore_image_wo_mask = out_restore_wo_mask.detach().cpu().numpy()
 
         for idx in range(len(augment_image)):
             save_augment = np.array(127.5 * (augment_image[idx] + 1.0), dtype= np.uint8)
             save_res = np.array(127.5 * (restore_image[idx] + 1.0), dtype= np.uint8)
+            save_res_wo_mask = np.array(127.5 * (restore_image_wo_mask[idx] + 1.0), dtype= np.uint8)
             save_ori = np.array(127.5 * (ori_image[idx] + 1.0), dtype= np.uint8)
             save_mask= np.array(255. * mask[idx], dtype= np.uint8)
             save_mask_predict = np.array(255. * mask_predict[idx], dtype= np.uint8)
             img = np.concatenate(
-                [save_ori, save_augment, save_res, save_mask, save_mask_predict], axis=2)
+                [save_ori, save_augment, save_res, save_mask, save_mask_predict, save_res_wo_mask], axis=2)
             img = np.transpose(img, (1, 2, 0))
             cv2.imwrite(os.path.join(vis_folder, "vis_{}.jpg".format(
                 counter + idx)), cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
@@ -272,13 +276,14 @@ def train():
             ori_image = ori_image.to(cfg.device)
 
             # Get generator output
-            _, out_restore = model_generator(augment_image)
+            _, out_restore, out_restore_wo_mask = model_generator(augment_image)
             # Get disciminator output
             disc_restore = model_disciminator(out_restore)
             # Get generator loss
             total_loss, gan_loss, pixel_loss, identity_loss, perceptual_loss, edge_loss, ssim_loss = generator_loss(disc_restore=disc_restore,
                                                                                                                     restore_image=out_restore,
                                                                                                                     ori_image=ori_image,
+                                                                                                                    restore_image_wo_mask= out_restore_wo_mask,
                                                                                                                     mask=None,
                                                                                                                     is_batch_occlu=is_batch_occlu,
                                                                                                                     step=step)
