@@ -10,7 +10,7 @@ class cfg:
 
     # iter traning
     non_occlu_augment = 10000 
-    occlu_nature = 2000
+    occlu_nature = 5000
 
     # TM-NOTE: train of phase 1 -> only pixel loss
     GAN_LOSS_WEIGHT = 0.75

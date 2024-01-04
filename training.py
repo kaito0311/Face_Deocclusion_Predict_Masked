@@ -74,7 +74,10 @@ def generator_loss(disc_restore, restore_image, ori_image, restore_image_wo_mask
     gan_loss /= len(disc_restore)
 
     # Pixel wise
-    pixel_loss = cfg.PIXEL_LOSS_WEIGHT * (pixel_wise(restore_image, ori_image) + pixel_wise(restore_image, restore_image_wo_mask)) / 2 
+    if is_batch_occlu: 
+        pixel_loss = cfg.PIXEL_LOSS_WEIGHT * 0.5 * pixel_wise(restore_image, restore_image_wo_mask) 
+    else:
+        pixel_loss = cfg.PIXEL_LOSS_WEIGHT * (pixel_wise(restore_image, ori_image) + pixel_wise(restore_image, restore_image_wo_mask)) / 2 
 
     # # Identity FIXME
     id_loss = cfg.IDENTITY_LOSS_WEIGHT * \
@@ -97,16 +100,17 @@ def generator_loss(disc_restore, restore_image, ori_image, restore_image_wo_mask
     ssim_loss = cfg.SSIM_LOSS_WEIGHT * (2 - torch.mean(ss) - torch.mean(cs))
 
     if is_batch_occlu:
-        total_loss = pixel_loss / cfg.PIXEL_LOSS_WEIGHT + 0.1*perceptual_loss / \
-            cfg.PERCEPTUAL_LOSS_WEIGHT + gan_loss  # L1 + perceptual loss only
+        # total_loss = pixel_loss / cfg.PIXEL_LOSS_WEIGHT + 0.1*perceptual_loss / \
+        #     cfg.PERCEPTUAL_LOSS_WEIGHT + gan_loss  # L1 + perceptual loss only
+        total_loss = pixel_loss + perceptual_loss + gan_loss + id_loss
 
     else:
         total_loss = gan_loss \
             + pixel_loss \
             + id_loss \
             + perceptual_loss \
-            # + edge_loss \
-            # + ssim_loss
+            + edge_loss \
+            + ssim_loss
 
     return total_loss, gan_loss, pixel_loss, id_loss, perceptual_loss, edge_loss, ssim_loss
 
@@ -250,13 +254,13 @@ def train():
 
             step += 1
 
-            # if i % number_switch_batch == 0: 
-            #     if is_batch_occlu: 
-            #         number_switch_batch = cfg.non_occlu_augment 
-            #         is_batch_occlu = False 
-            #     elif not is_batch_occlu:
-            #         number_switch_batch = cfg.occlu_nature
-            #         is_batch_occlu = True 
+            if i % number_switch_batch == 0: 
+                if is_batch_occlu: 
+                    number_switch_batch = cfg.non_occlu_augment 
+                    is_batch_occlu = False 
+                elif not is_batch_occlu:
+                    number_switch_batch = cfg.occlu_nature
+                    is_batch_occlu = True 
 
             lr = scheduler_gen(step)
             _ = scheduler_disc(step)
