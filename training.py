@@ -74,8 +74,7 @@ def generator_loss(disc_restore, restore_image, ori_image, restore_image_wo_mask
     gan_loss /= len(disc_restore)
 
     # Pixel wise
-    pixel_loss = cfg.PIXEL_LOSS_WEIGHT * \
-        (pixel_wise(restore_image, ori_image) + pixel_wise(restore_image, restore_image_wo_mask)) / 2 
+    pixel_loss = cfg.PIXEL_LOSS_WEIGHT * (pixel_wise(restore_image, ori_image) + pixel_wise(restore_image, restore_image_wo_mask)) / 2 
 
     # # Identity FIXME
     id_loss = cfg.IDENTITY_LOSS_WEIGHT * \
@@ -106,8 +105,8 @@ def generator_loss(disc_restore, restore_image, ori_image, restore_image_wo_mask
             + pixel_loss \
             + id_loss \
             + perceptual_loss \
-            + edge_loss \
-            + ssim_loss
+            # + edge_loss \
+            # + ssim_loss
 
     return total_loss, gan_loss, pixel_loss, id_loss, perceptual_loss, edge_loss, ssim_loss
 
