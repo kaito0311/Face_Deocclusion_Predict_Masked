@@ -12,8 +12,14 @@ from dataset.dataloader import FaceRemovedMaskedDataset, FaceDataset
 
 from model_sam import Model 
 
+count = 0
+for i in os.listdir("images/occlusion_object/clean_segment"):
+    if "hat" in i:
+        count += 1
+print(count)
 
 
+exit()
 weight = torch.load("all_experiments/sam_training/firt_experiment/ckpt/ckpt_gen_lastest.pt")
 print(weight.keys())
 

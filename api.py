@@ -99,6 +99,6 @@ demo = gr.Interface(
     examples=[]
 )
 
-demo.launch(show_tips=True, server_name='10.9.3.239', server_port=5137)
+demo.launch(show_tips=True, server_name='10.9.3.239', server_port=5136)
 
 # infer_face_de_occlusion(cv2.imread("/home/data3/tanminh/NML-Face/test.jpg"))
