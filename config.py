@@ -27,7 +27,7 @@ class cfg:
     lr_gen = 1e-4
     lr_disc = 1e-4
     wd = 0.01
-    START_STEP = 0
+    START_STEP = 9000
     stage_1_iters = 0
     warmup_length = 50000  # 50k iter
     epoches = 32
@@ -41,5 +41,5 @@ class cfg:
     valid_data_occlu = '/home1/data/tanminh/NML-Face/list_name_file/list_name_val_masked.npy'
     valid_data_non_occlu = '/home1/data/tanminh/NML-Face/list_name_file/list_name_val_no_masked.npy'
     training_dir = 'all_experiments/pretrained_deocclu_training/second_experiment'
-    pretrained_g = "all_experiments/pretrained_deocclu_training/firt_experiment/ckpt/14k_ckpt/ckpt_gen_backup.pt"
-    pretrained_d = "all_experiments/pretrained_deocclu_training/firt_experiment/ckpt/14k_ckpt/ckpt_dis_backup.pt"
+    pretrained_g = "all_experiments/pretrained_deocclu_training/second_experiment/ckpt/good_8k/ckpt_gen_backup.pt"
+    pretrained_d = "all_experiments/pretrained_deocclu_training/second_experiment/ckpt/good_8k/ckpt_dis_backup.pt"

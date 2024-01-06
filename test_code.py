@@ -1,25 +1,94 @@
 import os 
 
+import cv2
 import torch 
 import numpy as np 
+from PIL import Image 
+from torchvision import transforms as T
 from torch.utils.data import Dataset, DataLoader
 
 from config import cfg
 from models.oagan.generator import OAGAN_Generator 
 from dataset.dataloader import FaceRemovedMaskedDataset, FaceDataset
-
 from models.pre_deocclusion.de_occlu_syn import FaceDeocclusionModel 
 
 
-model= FaceDeocclusionModel()
+# transforms = T.Compose([
+#             T.Resize((112,112)),
+#             T.ToTensor(),
+#             T.Normalize(mean=[0.5], std=[0.5])
+#         ])
 
-weight = (torch.load("pretrained/ckpt_gen_lastest.pt", map_location="cpu"))
+# model = OAGAN_Generator(
+#     pretrained_encoder="/home1/data/tanminh/NML-Face/pretrained/r160_imintv4_statedict.pth",
+#     pretrain_deocclu_model= "/home1/data/tanminh/Face_Deocclusion_Predict_Masked/pretrained/ckpt_gen_lastest.pt",
+#     freeze_deocclu_model= True
+# )
+# model.load_state_dict(torch.load("all_experiments/pretrained_deocclu_training/second_experiment/ckpt/ckpt_gen_lastest.pt", map_location="cpu"))
+# model.to("cpu")
+# model.eval()
+# while True:
+#     path = input("input path: ")
+#     try:
+#         tensor = (Image.open(path))
+#         tensor = transforms(tensor)
+#         tensor = torch.unsqueeze(tensor, 0)
 
-model.load_state_dict(weight)
-# print(list(model.state_dict().keys())[:100])
-# print(list(weight.keys())[:100])
+#         masked, restore_image, restore_image_wo_mask = model.predict(tensor.to("cpu"))
+#         np.save("sub.npy", (restore_image_wo_mask - tensor).detach().numpy())
+#         restore_image_wo_mask = restore_image_wo_mask.detach().cpu().numpy()
+#         save_res_wo_mask = np.array(127.5 * (restore_image_wo_mask[0] + 1.0), dtype= np.uint8)
+#         img = np.transpose(save_res_wo_mask, (1, 2, 0))
+#         cv2.imwrite("out.jpg", img)
+#         cv2.imwrite("in.jpg", cv2.imread(path))
+        
+#         print("hello")
+#     except Exception as e: 
+#         print(str(e))
+# exit()
 
 
+def process_torch(sub):
+    sub = torch.abs(sub)
+    sub /= 2.0 
+    sub = sub[:, 0, :, :] * 0.2989 + sub[:, 1, :, :] *  0.5870 + sub[:, 2, :, :] * 0.1140
+
+    return sub 
+
+
+
+sub= process_torch(torch.from_numpy(np.load("sub.npy")))
+print(sub.shape)
+print(torch.unsqueeze(sub, 1).shape)
+out = np.array(255 * sub[0].detach().numpy(), dtype= np.uint8)
+cv2.imwrite("sub_torch.jpg", out)
+exit()
+
+transforms = T.Compose([
+            T.Resize((112,112)),
+            T.ToTensor(),
+            T.Normalize(mean=[0.5], std=[0.5])
+        ])
+
+model = OAGAN_Generator(
+    pretrained_encoder="/home1/data/tanminh/NML-Face/pretrained/r160_imintv4_statedict.pth",
+    pretrain_deocclu_model= "/home1/data/tanminh/Face_Deocclusion_Predict_Masked/pretrained/ckpt_gen_lastest.pt",
+    freeze_deocclu_model= True
+)
+model.load_state_dict(torch.load("all_experiments/pretrained_deocclu_training/second_experiment/ckpt/ckpt_gen_lastest.pt", map_location="cpu"))
+model.to("cpu")
+model.eval()
+tensor = (Image.open("images/val/masked/100009762790189_face_3.jpg"))
+tensor = transforms(tensor)
+tensor = torch.unsqueeze(tensor, 0)
+
+masked, restore_image, restore_image_wo_mask = model.predict(tensor.to("cpu"))
+restore_image_wo_mask = restore_image_wo_mask.detach().cpu().numpy()
+save_res_wo_mask = np.array(127.5 * (restore_image_wo_mask[0] + 1.0), dtype= np.uint8)
+img = np.transpose(save_res_wo_mask, (1, 2, 0))
+cv2.imwrite("out.jpg", img)
+np.save("sub.npy", (restore_image_wo_mask - tensor).detach().numpy())
+print("hello")
 exit()
 
 
