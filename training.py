@@ -45,7 +45,8 @@ def discriminator_loss(disc_out_res, disc_real_image):
         mul = 1.0 if ix == 0 else 0.5
         real_loss += mul * \
             loss_object(com_target_real, torch.ones_like(com_target_real))
-        fake_loss += mul * (loss_object(com_restore, torch.zeros_like(com_restore)))
+        fake_loss += mul * \
+            (loss_object(com_restore, torch.zeros_like(com_restore)))
 
         # real_loss += mul * \
         #     gan_loss_obj(com_target_real, target_is_real=True, is_disc=True)
@@ -74,68 +75,74 @@ def generator_loss(disc_restore, restore_image, ori_image, restore_image_wo_mask
     gan_loss /= len(disc_restore)
 
     # Pixel wise
-    if is_batch_occlu: 
+    if is_batch_occlu:
 
         def process_torch(sub):
             sub = torch.abs(sub)
-            sub /= 2.0 
-            sub = sub[:, 0, :, :] * 0.2989 + sub[:, 1, :, :] *  0.5870 + sub[:, 2, :, :] * 0.1140 # rgb to gray 
-            
-            return sub 
-        
+            sub /= 2.0
+            sub = sub[:, 0, :, :] * 0.2989 + sub[:, 1, :, :] * \
+                0.5870 + sub[:, 2, :, :] * 0.1140  # rgb to gray
+
+            return sub
+
         assert mask_pred is not None
-        mask_gt = process_torch(restore_image_wo_mask - ori_image)        
+        mask_gt = process_torch(restore_image_wo_mask - ori_image)
         mask_gt = torch.unsqueeze(mask_gt, 1)
         mask_gt = mask_gt.repeat(1, 3, 1, 1)
-        
+
         for idx, save_m in enumerate(mask_gt):
-            cv2.imwrite(str(idx) + ".jpg", np.array(np.transpose(save_m.detach().cpu().numpy(), (1,2,0)) * 255., dtype= np.uint8))
-        
-        
+            cv2.imwrite(str(idx) + ".jpg", np.array(np.transpose(
+                save_m.detach().cpu().numpy(), (1, 2, 0)) * 255., dtype=np.uint8))
 
         pixel_loss = cfg.PIXEL_LOSS_WEIGHT * (pixel_wise(mask_gt, mask_pred))
 
-
         # # Identity FIXME
-        id_loss = cfg.IDENTITY_LOSS_WEIGHT * identity_loss(model_feature_extraction, restore_image=restore_image, ori_image=ori_image)
+        id_loss = cfg.IDENTITY_LOSS_WEIGHT * \
+            identity_loss(model_feature_extraction,
+                          restore_image=restore_image, ori_image=ori_image)
 
         # Perceptual
-        perceptual_loss = percep_loss_obj(restore_image, ori_image)[0] 
+        perceptual_loss = percep_loss_obj(restore_image, ori_image)[0]
         perceptual_loss *= cfg.PERCEPTUAL_LOSS_WEIGHT
 
         # Edge loss
-        edge_loss = cfg.EDGE_LOSS_WEIGHT * sobel_loss(restore_image, ori_image, reduction="mean")
+        edge_loss = cfg.EDGE_LOSS_WEIGHT * \
+            sobel_loss(restore_image, ori_image, reduction="mean")
 
         # SSIM loss
         kernel = gaussian_kernel(7, sigma=1).repeat(3, 1, 1)
         kernel = kernel.to("cuda")
         ss, cs = ssim(restore_image, ori_image, kernel)
-        ssim_loss = cfg.SSIM_LOSS_WEIGHT * (2 - torch.mean(ss) - torch.mean(cs))
+        ssim_loss = cfg.SSIM_LOSS_WEIGHT * \
+            (2 - torch.mean(ss) - torch.mean(cs))
 
-        total_loss = pixel_loss         
+        total_loss = pixel_loss
         return total_loss, gan_loss, pixel_loss, id_loss, perceptual_loss, edge_loss, ssim_loss
     else:
         def process_torch(sub):
             sub = torch.abs(sub)
-            sub /= 2.0 
-            sub = sub[:, 0, :, :] * 0.2989 + sub[:, 1, :, :] *  0.5870 + sub[:, 2, :, :] * 0.1140 # rgb to gray 
-            
-            return sub 
-        
+            sub /= 2.0
+            sub = sub[:, 0, :, :] * 0.2989 + sub[:, 1, :, :] * \
+                0.5870 + sub[:, 2, :, :] * 0.1140  # rgb to gray
+
+            return sub
+
         assert mask_pred is not None
-        mask_gt = process_torch(restore_image_wo_mask - ori_image)        
+        mask_gt = process_torch(restore_image_wo_mask - ori_image)
         mask_gt = torch.unsqueeze(mask_gt, 1)
         mask_gt = mask_gt.repeat(1, 3, 1, 1)
 
-        mask_loss = cfg.PIXEL_LOSS_WEIGHT / 3 * pixel_wise(mask_pred, mask_gt) 
+        mask_loss = cfg.PIXEL_LOSS_WEIGHT / 3 * pixel_wise(mask_pred, mask_gt)
 
         # Pixel loss
-        pixel_loss = cfg.PIXEL_LOSS_WEIGHT * (pixel_wise(restore_image, ori_image) + pixel_wise(restore_image, restore_image_wo_mask)) / 2 
-        
+        pixel_loss = cfg.PIXEL_LOSS_WEIGHT * \
+            (pixel_wise(restore_image, ori_image) +
+             pixel_wise(restore_image, restore_image_wo_mask)) / 2
+
         # # Identity FIXME
         id_loss = cfg.IDENTITY_LOSS_WEIGHT * \
             identity_loss(model_feature_extraction,
-                        restore_image=restore_image, ori_image=ori_image)
+                          restore_image=restore_image, ori_image=ori_image)
 
         # Perceptual
         perceptual_loss, _ = percep_loss_obj(restore_image, ori_image)
@@ -149,8 +156,9 @@ def generator_loss(disc_restore, restore_image, ori_image, restore_image_wo_mask
         kernel = gaussian_kernel(7, sigma=1).repeat(3, 1, 1)
         kernel = kernel.to("cuda")
         ss, cs = ssim(restore_image, ori_image, kernel)
-        ssim_loss = cfg.SSIM_LOSS_WEIGHT * (2 - torch.mean(ss) - torch.mean(cs))
-        
+        ssim_loss = cfg.SSIM_LOSS_WEIGHT * \
+            (2 - torch.mean(ss) - torch.mean(cs))
+
         total_loss = gan_loss \
             + pixel_loss \
             + id_loss \
@@ -158,8 +166,8 @@ def generator_loss(disc_restore, restore_image, ori_image, restore_image_wo_mask
             + edge_loss \
             + ssim_loss \
             + mask_loss
-        
-        return total_loss, gan_loss, pixel_loss, id_loss, perceptual_loss, edge_loss, ssim_loss
+
+        return total_loss, gan_loss, pixel_loss, id_loss, perceptual_loss, edge_loss, ssim_loss, mask_loss
 
 
 def eval(step):
@@ -191,62 +199,69 @@ def eval(step):
         file.write(str(step) + "\n")
     file.close()
 
-
     for i, batch in enumerate(non_occlu_val_loader):
         mask, augment_image, ori_image = batch
-        mask = mask.to(cfg.device) 
-        augment_image = augment_image.to(cfg.device) 
+        mask = mask.to(cfg.device)
+        augment_image = augment_image.to(cfg.device)
         ori_image = ori_image.to(cfg.device)
 
-
         with torch.no_grad():
-            mask_predict, out_rot, out_restore_wo_mask = model_generator.predict(augment_image)
-            mask = mask.detach().cpu().numpy() 
-            mask_predict = mask_predict.detach().cpu().numpy() 
+            mask_predict, out_rot, out_restore_wo_mask = model_generator.predict(
+                augment_image)
+            mask = mask.detach().cpu().numpy()
+            mask_predict = mask_predict.detach().cpu().numpy()
             mask_predict = np.repeat(mask_predict, 3, axis=1)
-            augment_image = augment_image.detach().cpu().numpy() 
+            augment_image = augment_image.detach().cpu().numpy()
             ori_image = ori_image.detach().cpu().numpy()
-            restore_image = out_rot.detach().cpu().numpy()  
+            restore_image = out_rot.detach().cpu().numpy()
             restore_image_wo_mask = out_restore_wo_mask.detach().cpu().numpy()
 
         for idx in range(len(augment_image)):
-            save_augment = np.array(127.5 * (augment_image[idx] + 1.0), dtype= np.uint8)
-            save_res = np.array(127.5 * (restore_image[idx] + 1.0), dtype= np.uint8)
-            save_res_wo_mask = np.array(127.5 * (restore_image_wo_mask[idx] + 1.0), dtype= np.uint8)
-            save_ori = np.array(127.5 * (ori_image[idx] + 1.0), dtype= np.uint8)
-            save_mask= np.array(255. * mask[idx], dtype= np.uint8)
-            save_mask_predict = np.array(255. * mask_predict[idx], dtype= np.uint8)
+            save_augment = np.array(
+                127.5 * (augment_image[idx] + 1.0), dtype=np.uint8)
+            save_res = np.array(
+                127.5 * (restore_image[idx] + 1.0), dtype=np.uint8)
+            save_res_wo_mask = np.array(
+                127.5 * (restore_image_wo_mask[idx] + 1.0), dtype=np.uint8)
+            save_ori = np.array(127.5 * (ori_image[idx] + 1.0), dtype=np.uint8)
+            save_mask = np.array(255. * mask[idx], dtype=np.uint8)
+            save_mask_predict = np.array(
+                255. * mask_predict[idx], dtype=np.uint8)
             img = np.concatenate(
                 [save_ori, save_augment, save_res, save_mask, save_mask_predict, save_res_wo_mask], axis=2)
             img = np.transpose(img, (1, 2, 0))
             cv2.imwrite(os.path.join(vis_folder, "vis_{}.jpg".format(
                 counter + idx)), cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
         counter += len(ori_image)
-        
+
     for i, batch in enumerate(occlu_val_loader):
         mask, augment_image, ori_image = batch
-        mask = mask.to(cfg.device) 
-        augment_image = augment_image.to(cfg.device) 
+        mask = mask.to(cfg.device)
+        augment_image = augment_image.to(cfg.device)
         ori_image = ori_image.to(cfg.device)
 
-
         with torch.no_grad():
-            mask_predict, out_rot, out_restore_wo_mask = model_generator.predict(augment_image)
-            mask = mask.detach().cpu().numpy() 
-            mask_predict = mask_predict.detach().cpu().numpy() 
+            mask_predict, out_rot, out_restore_wo_mask = model_generator.predict(
+                augment_image)
+            mask = mask.detach().cpu().numpy()
+            mask_predict = mask_predict.detach().cpu().numpy()
             mask_predict = np.repeat(mask_predict, 3, axis=1)
-            augment_image = augment_image.detach().cpu().numpy() 
+            augment_image = augment_image.detach().cpu().numpy()
             ori_image = ori_image.detach().cpu().numpy()
-            restore_image = out_rot.detach().cpu().numpy()  
+            restore_image = out_rot.detach().cpu().numpy()
             restore_image_wo_mask = out_restore_wo_mask.detach().cpu().numpy()
 
         for idx in range(len(augment_image)):
-            save_augment = np.array(127.5 * (augment_image[idx] + 1.0), dtype= np.uint8)
-            save_res = np.array(127.5 * (restore_image[idx] + 1.0), dtype= np.uint8)
-            save_res_wo_mask = np.array(127.5 * (restore_image_wo_mask[idx] + 1.0), dtype= np.uint8)
-            save_ori = np.array(127.5 * (ori_image[idx] + 1.0), dtype= np.uint8)
-            save_mask= np.array(255. * mask[idx], dtype= np.uint8)
-            save_mask_predict = np.array(255. * mask_predict[idx], dtype= np.uint8)
+            save_augment = np.array(
+                127.5 * (augment_image[idx] + 1.0), dtype=np.uint8)
+            save_res = np.array(
+                127.5 * (restore_image[idx] + 1.0), dtype=np.uint8)
+            save_res_wo_mask = np.array(
+                127.5 * (restore_image_wo_mask[idx] + 1.0), dtype=np.uint8)
+            save_ori = np.array(127.5 * (ori_image[idx] + 1.0), dtype=np.uint8)
+            save_mask = np.array(255. * mask[idx], dtype=np.uint8)
+            save_mask_predict = np.array(
+                255. * mask_predict[idx], dtype=np.uint8)
             img = np.concatenate(
                 [save_ori, save_augment, save_res, save_mask, save_mask_predict, save_res_wo_mask], axis=2)
             img = np.transpose(img, (1, 2, 0))
@@ -277,6 +292,7 @@ def train():
         avg_real_loss = 0
         avg_fake_loss = 0
         avg_disc_loss = 0
+        avg_mask_loss = 0
         print("EPOCH : " + str(epoch))
 
         i = 1
@@ -286,7 +302,7 @@ def train():
         while True:
             # Define batch
             try:
-                i += 1 
+                i += 1
                 if is_batch_occlu:
                     batch = next(occlu_train_iter)
                 else:
@@ -302,13 +318,13 @@ def train():
             step += 1
 
             # if i % number_switch_batch == 0:
-            #     i = 1  
-            #     if is_batch_occlu: 
-            #         number_switch_batch = cfg.non_occlu_augment 
-            #         is_batch_occlu = False 
+            #     i = 1
+            #     if is_batch_occlu:
+            #         number_switch_batch = cfg.non_occlu_augment
+            #         is_batch_occlu = False
             #     elif not is_batch_occlu:
             #         number_switch_batch = cfg.occlu_nature
-            #         is_batch_occlu = True 
+            #         is_batch_occlu = True
 
             lr = scheduler_gen(step)
             _ = scheduler_disc(step)
@@ -327,17 +343,18 @@ def train():
             ori_image = ori_image.to(cfg.device)
 
             # Get generator output
-            _, out_restore, out_restore_wo_mask = model_generator(augment_image)
+            _, out_restore, out_restore_wo_mask = model_generator(
+                augment_image)
             # Get disciminator output
             disc_restore = model_disciminator(out_restore)
             # Get generator loss
-            total_loss, gan_loss, pixel_loss, identity_loss, perceptual_loss, edge_loss, ssim_loss = generator_loss(disc_restore=disc_restore,
-                                                                                                                    restore_image=out_restore,
-                                                                                                                    ori_image=ori_image,
-                                                                                                                    restore_image_wo_mask= out_restore_wo_mask,
-                                                                                                                    mask_pred=mask,
-                                                                                                                    is_batch_occlu=is_batch_occlu,
-                                                                                                                    step=step)
+            total_loss, gan_loss, pixel_loss, identity_loss, perceptual_loss, edge_loss, ssim_loss, mask_loss = generator_loss(disc_restore=disc_restore,
+                                                                                                                               restore_image=out_restore,
+                                                                                                                               ori_image=ori_image,
+                                                                                                                               restore_image_wo_mask=out_restore_wo_mask,
+                                                                                                                               mask_pred=mask,
+                                                                                                                               is_batch_occlu=is_batch_occlu,
+                                                                                                                               step=step)
             total_loss.backward()
             optimizer_gen.step()
             i1 = time.time()
@@ -366,6 +383,7 @@ def train():
             avg_real_loss += real_loss.detach().cpu().numpy()
             avg_fake_loss += fake_loss.detach().cpu().numpy()
             avg_disc_loss += disc_loss.detach().cpu().numpy()
+            avg_mask_loss += mask_loss.detach().cpu().numpy()
 
             i3 = time.time()
             if step % cfg.print_every == 0 and step > 1:
@@ -380,6 +398,7 @@ def train():
                 tavg_fake_loss = avg_fake_loss/(i + 1)
                 tavg_disc_loss = avg_disc_loss/(i + 1)
                 tavg_ssim_loss = avg_ssim_loss/(i + 1)
+                tavg_mask_loss = avg_mask_loss/(i + 1)
 
                 print('step', step)
 
@@ -391,6 +410,7 @@ def train():
                 print("avg_ssim_loss = ", tavg_ssim_loss)
                 print('avg_real_loss = ', tavg_real_loss)
                 print('avg_fake_loss = ', tavg_fake_loss)
+                print('tavg_mask_loss = ', tavg_mask_loss)
                 print('*********************')
                 print('avg_gen_loss = ', tavg_gen_loss)
                 print('avg_disc_loss = ', tavg_disc_loss)
@@ -470,8 +490,8 @@ if __name__ == "__main__":
 
     model_generator = OAGAN_Generator(
         pretrained_encoder="/home1/data/tanminh/NML-Face/pretrained/r160_imintv4_statedict.pth",
-        pretrain_deocclu_model= "/home1/data/tanminh/Face_Deocclusion_Predict_Masked/pretrained/ckpt_gen_lastest.pt",
-        freeze_deocclu_model= True
+        pretrain_deocclu_model="/home1/data/tanminh/Face_Deocclusion_Predict_Masked/pretrained/ckpt_gen_lastest.pt",
+        freeze_deocclu_model=True
     )
     model_disciminator = Discriminator(
         input_size=cfg.size_image, enable_face_component_loss=cfg.enable_face_component_loss)
