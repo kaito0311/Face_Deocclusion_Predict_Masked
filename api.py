@@ -50,7 +50,7 @@ def infer_face_de_occlusion(image, kind_model=1):
                 pretrain_deocclu_model= "/home1/data/tanminh/Face_Deocclusion_Predict_Masked/pretrained/ckpt_gen_lastest.pt",
                 freeze_deocclu_model= True
             )
-            model.load_state_dict(torch.load("all_experiments/pretrained_deocclu_training/firt_experiment/ckpt/ckpt_gen_lastest.pt", map_location="cpu"))
+            model.load_state_dict(torch.load("all_experiments/pretrained_deocclu_training/second_experiment/ckpt/good_110k/ckpt_gen_backup.pt", map_location="cpu"))
             id_model = kind_model
     elif kind_model == 1:
         if kind_model != id_model:
@@ -68,14 +68,14 @@ def infer_face_de_occlusion(image, kind_model=1):
     masked, out_front, _ = model.predict(tensor.to("cpu"))
     print("masked shape: ", masked.shape)
 
-    _, out_front_original, _ = model(tensor_original.to('cpu'))
+    # _, out_front_original, _ = model(tensor_original.to('cpu'))
 
     o_front    = np.array((out_front.detach().numpy()[0]+ 1.0)*127.5, dtype = np.uint8)
-    out_front_original    = np.array((masked.detach().numpy()[0]) * 255.0, dtype = np.uint8)
-    out_front_original = np.repeat(out_front_original, 3, axis=0)
+    out_pred_mask    = np.array((masked.detach().numpy()[0]) * 255.0, dtype = np.uint8)
+    out_pred_mask = np.repeat(out_pred_mask, 3, axis=0)
 
     img = np.transpose(o_front, (1, 2, 0))
-    img_result_original = np.transpose(out_front_original, (1,2,0))
+    img_result_original = np.transpose(out_pred_mask, (1,2,0))
 
 
     img = cv2.resize(img, (224,224), interpolation= cv2.INTER_CUBIC)

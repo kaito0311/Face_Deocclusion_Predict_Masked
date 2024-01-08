@@ -97,7 +97,6 @@ class FaceDataset(data.Dataset):
 
         return image
 
-
     def augment_gauss(self, image):
         image_augment = self.mask_random(image, occlusion_object=None, ratio_height=None)
         
