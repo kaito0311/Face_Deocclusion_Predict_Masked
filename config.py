@@ -21,7 +21,7 @@ class cfg:
     SSIM_LOSS_WEIGHT = 2.0
 
     # Config
-    valid_every = 100
+    valid_every = 1000
     print_every = 50
     batch_size = 4
     lr_gen = 1e-4

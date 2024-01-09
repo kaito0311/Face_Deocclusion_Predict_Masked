@@ -17,6 +17,67 @@ detector = FaceDetector(
     "face_processor_python/models/retinaface_mobilev3.onnx")
 aligner = Aligner()
 
+
+source_dir = "images/mask_align_retina"
+
+list_path = glob.glob(source_dir + "/*.jpg")
+
+save_dir_mask = "/home1/data/tanminh/MaskTheFace/data/mask"
+save_dir_image = "/home1/data/tanminh/MaskTheFace/data/image"
+
+os.makedirs(save_dir_mask, exist_ok= True)
+os.makedirs(save_dir_image, exist_ok= True)
+
+
+# image = "images/mask_align_retina/CelebAHQ_image_4681.jpg"
+# mask = "images/mask_align_retina/CelebAHQ_mask_17416.jpg"
+# mask = cv2.imread(mask)
+# mask = mask * 255.0
+# mask = np.clip(mask, 0, 255)
+# mask = np.array(mask, np.uint8)
+# cv2.imwrite("mask.jpg", mask)
+
+# exit()
+count = 0 
+
+for path in tqdm(list_path):
+    is_image = os.path.basename(path).split("_")[-2] == "image" 
+    
+    if is_image: 
+        image = cv2.imread(path) 
+
+        path_mask = os.path.basename(path).split("_")
+        path_mask[-2] = "mask" 
+        path_mask = "_".join(path_mask)
+        path_mask = os.path.join(source_dir, path_mask)
+
+        if not os.path.isfile(path_mask):
+            print("[ERROR] not found ", path_mask)
+            continue
+
+        mask = cv2.imread(path_mask)
+
+        mask = mask * 255.0 
+        mask = np.clip(mask, 0, 255)
+        mask = np.array(mask, np.uint8)
+
+        
+        cv2.imwrite(os.path.join(save_dir_image, str(count) + ".jpg"), image)
+        cv2.imwrite(os.path.join(save_dir_mask, str(count) + ".jpg"), mask)
+
+        count += 1
+        
+    
+
+    
+    # os.system(cmd) 
+
+
+
+
+
+
+exit()
 def take_mask_align(image_ori, image_size = (256, 256)):
     image_ori = cv2.imread(image_ori, cv2.IMREAD_UNCHANGED)
     image = np.zeros(shape=(512, 512, 4))
