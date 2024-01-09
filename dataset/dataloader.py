@@ -58,7 +58,7 @@ class FaceDataset(data.Dataset):
         
     def mask_random(self, image, occlusion_object=None, ratio_height=-1):
         if ratio_height is None:
-            ratio_height = np.clip(np.random.rand(), 0.3, 0.65)
+            ratio_height = np.clip(np.random.rand(), 0.4, 0.85)
 
         # if ratio_width is None:
         #     ratio_width = np.clip(np.random.rand(), 0.1, 0.5)

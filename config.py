@@ -27,10 +27,10 @@ class cfg:
     lr_gen = 1e-4
     lr_disc = 1e-4
     wd = 0.01
-    START_STEP = 67000
+    START_STEP = 366000
     stage_1_iters = 0
     warmup_length = 50000  # 50k iter
-    epoches = 100
+    epoches = 32
     num_workers = 6
     enable_face_component_loss = True
 
