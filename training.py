@@ -14,7 +14,7 @@ from utils.utils import cosine_lr, get_lr
 from models.oagan.generator import OAGAN_Generator
 from models.oagan.disciminator import Discriminator
 from losses.ssim_losses import gaussian_kernel, ssim
-from dataset.dataloader import FaceDataset
+from dataset.dataloader import FaceSyntheticDataset
 from losses.vgg_feature_losses import PerceptualLoss, GANLoss
 from losses.losses import pixel_wise, sobel_loss, identity_loss
 
@@ -164,8 +164,7 @@ def generator_loss(disc_restore, restore_image, ori_image, restore_image_wo_mask
             + id_loss \
             + perceptual_loss \
             + edge_loss \
-            + ssim_loss \
-            + mask_loss
+            + ssim_loss
 
         return total_loss, gan_loss, pixel_loss, id_loss, perceptual_loss, edge_loss, ssim_loss, mask_loss
 
@@ -339,6 +338,7 @@ def train():
 
             mask, augment_image, ori_image = batch
             mask = mask.to(cfg.device)
+
             augment_image = augment_image.to(cfg.device)
             ori_image = ori_image.to(cfg.device)
 
@@ -510,36 +510,36 @@ if __name__ == "__main__":
     model_feature_extraction.eval()
 
     ''' Define dataloader '''
-    non_occlu_trainset = FaceDataset(
+    non_occlu_trainset = FaceSyntheticDataset(
         path_list_name_data=cfg.train_data_non_occlu,
         root_dir=cfg.ROOT_DIR,
         ratio_occlu=cfg.synthetic_mask_ratio_non_occlu,
         is_train=True,
-        path_occlusion_object="images/occlusion_object/clean_segment"
+        path_occlusion_object="images/mask_align_retina"
     )
 
-    occlu_trainset = FaceDataset(
+    occlu_trainset = FaceSyntheticDataset(
         path_list_name_data=cfg.train_data_occlu,
         root_dir=cfg.ROOT_DIR,
         ratio_occlu=cfg.synthetic_mask_ratio_occlu,
         is_train=True,
-        path_occlusion_object="images/occlusion_object/clean_segment"
+        path_occlusion_object="images/mask_align_retina"
     )
 
-    non_occlu_valset = FaceDataset(
+    non_occlu_valset = FaceSyntheticDataset(
         path_list_name_data=cfg.valid_data_non_occlu,
         root_dir=cfg.ROOT_DIR,
         ratio_occlu=cfg.synthetic_mask_ratio_non_occlu,
         is_train=False,
-        path_occlusion_object="images/occlusion_object/clean_segment"
+        path_occlusion_object="images/mask_align_retina"
     )
 
-    occlu_valset = FaceDataset(
+    occlu_valset = FaceSyntheticDataset(
         path_list_name_data=cfg.valid_data_occlu,
         root_dir=cfg.ROOT_DIR,
         ratio_occlu=cfg.synthetic_mask_ratio_occlu,
         is_train=False,
-        path_occlusion_object="images/occlusion_object/clean_segment"
+        path_occlusion_object="images/mask_align_retina"
     )
 
     non_occlu_train_loader = DataLoader(

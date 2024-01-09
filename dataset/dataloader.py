@@ -328,3 +328,128 @@ class FaceRemovedMaskedDataset(data.Dataset):
 
     def __len__(self):
         return max(self.total_non_occlu, self.total_occlu)
+
+
+class FaceSyntheticDataset(data.Dataset):
+    def __init__(self, path_list_name_data, root_dir=None, ratio_occlu = 0, is_train=True, path_occlusion_object=None) -> None:
+        super().__init__()
+
+        self.list_name_data = path_list_name_data 
+        self.root_dir = root_dir 
+        self.is_train = is_train
+        self.path_occlusion_object = path_occlusion_object 
+        self.ratio_occlu = ratio_occlu
+
+        if str(path_list_name_data).endswith(".npy"):
+            self.list_img = shuffle(np.load(path_list_name_data))
+        else: 
+            self.list_img = shuffle(os.listdir(path_list_name_data))
+
+        self.list_path_occlusion_object = os.listdir(
+            path_occlusion_object) if path_occlusion_object is not None else None
+
+        self.list_img = [os.path.join(root_dir, path) for path in self.list_img]
+
+        self.total_image = len(self.list_img) 
+
+        self.horizontal_flip = None 
+        if self.is_train:
+            self.horizontal_flip = T.Compose([
+                T.Resize((cfg.size_image, cfg.size_image)),
+                T.RandomHorizontalFlip(p= 1.0)
+            ])
+        self.transforms_mask = T.Compose([
+            T.Resize((cfg.size_image, cfg.size_image)),
+            T.ToTensor(),
+        ])
+        self.transforms = T.Compose([
+            T.Resize((cfg.size_image, cfg.size_image)),
+            T.ToTensor(),
+            T.Normalize(mean=[0.5], std=[0.5])
+        ])
+
+    def mask_synthetic(self, image:Image):
+        image = np.array(image) 
+
+        path = (os.path.join(
+            self.path_occlusion_object, random.choice(self.list_path_occlusion_object)))
+        
+        mask, occlu_obj = None, None 
+
+        if os.path.basename(path).split("_")[-2] == "image":
+            mask_path = os.path.basename(path).split("_")
+            mask_path[-2] = "mask"
+            mask_path = "_".join(mask_path)
+            mask_path = os.path.join(self.path_occlusion_object, mask_path) 
+            if not os.path.isfile(mask_path):
+                print("[ERROR] Cannot find: ", mask_path)
+                return Image.fromarray(image), None
+            mask = cv2.imread(mask_path) 
+            mask = cv2.cvtColor(mask, cv2.COLOR_BGR2RGB)
+
+            occlu_obj = cv2.imread(path) 
+            occlu_obj = cv2.cvtColor(occlu_obj, cv2.COLOR_BGR2RGB)
+
+        else:
+            occlu_path = os.path.basename(path).split("_")
+            occlu_path[-2] = "image"
+            occlu_path = "_".join(occlu_path)
+            occlu_path = os.path.join(self.path_occlusion_object, occlu_path) 
+            if not os.path.isfile(occlu_path):
+                print("[ERROR] Cannot find: ", occlu_path)
+                return Image.fromarray(image), None
+            occlu_obj = cv2.imread(occlu_path) 
+            occlu_obj = cv2.cvtColor(occlu_obj, cv2.COLOR_BGR2RGB)
+
+            mask= cv2.imread(path) 
+            mask = cv2.cvtColor(mask, cv2.COLOR_BGR2RGB) 
+        
+        h, w, _ = image.shape 
+        mask = cv2.resize(mask, (w, h))
+        occlu_obj = cv2.resize(occlu_obj, (w, h)) 
+
+        masked_image = Image.fromarray(image * (1 - mask) + occlu_obj * mask)
+        mask = Image.fromarray(np.array(mask * 255., dtype= np.uint8))
+        return masked_image, mask
+    
+    def blur_image(self, image:Image): 
+        image = np.array(image)
+        image_blur =  cv2.blur(image,(3,3))
+        return Image.fromarray(image_blur)
+ 
+    def __getitem__(self, index: Any) -> Any:
+        
+        path_image = self.list_img[int(index % self.total_image)]
+
+        image = Image.open(path_image)
+
+        if np.random.rand() < self.ratio_occlu: 
+            occlu_image, mask = self.mask_synthetic(image)
+            
+            occlu_image, image = self.blur_image(occlu_image), self.blur_image(image) 
+
+        else: 
+            occlu_image = image.copy()
+            mask = None 
+        
+        
+        if self.is_train: 
+            if np.random.rand() < 0.5: 
+                occlu_image = self.horizontal_flip(occlu_image) 
+                image = self.horizontal_flip(image)
+                if mask is not None:  
+                    mask = self.horizontal_flip(mask)
+                
+            
+        occlu_image = self.transforms(occlu_image) 
+        image = self.transforms(image) 
+    
+        if mask is None: 
+            mask = torch.zeros_like(image) 
+        else: 
+            mask = self.transforms_mask(mask)
+        
+        return mask, occlu_image, image
+
+    def __len__(self):
+        return len(self.list_img)

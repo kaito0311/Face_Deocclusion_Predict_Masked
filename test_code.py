@@ -1,5 +1,6 @@
 import os 
-
+import glob 
+from tqdm import tqdm 
 import cv2
 import torch 
 import numpy as np 
@@ -10,8 +11,44 @@ from torch.utils.data import Dataset, DataLoader
 from config import cfg
 from models.oagan.generator import OAGAN_Generator 
 from dataset.dataloader import FaceRemovedMaskedDataset, FaceDataset
+from face_processor_python.mfp import FaceDetector, Aligner
 from models.pre_deocclusion.de_occlu_syn import FaceDeocclusionModel 
+detector = FaceDetector(
+    "face_processor_python/models/retinaface_mobilev3.onnx")
+aligner = Aligner()
 
+def take_mask_align(image_ori, image_size = (256, 256)):
+    image_ori = cv2.imread(image_ori, cv2.IMREAD_UNCHANGED)
+    image = np.zeros(shape=(512, 512, 4))
+    image[128:128+256, 128: 128+256,:] = image_ori 
+    image, mask = image[:, :, :3], image[:, :, 3][:, :, None]
+
+    faceobjects = detector.DetectFace(image)
+
+    image_align = aligner.AlignFace(image, faceobjects[0], image_size)
+    mask_align = aligner.AlignFace(mask, faceobjects[0], image_size)
+    mask_align = np.expand_dims(mask_align, 2)
+    mask_align = np.repeat(mask_align, 3, 2)
+    mask_align = np.where(mask_align > 0, 1, 0)
+
+    return image_align, mask_align
+
+
+count = 0 
+
+dataset = "mask_face"
+list_path_source = glob.glob(f"images/FaceOcc/FaceOcc/internet/{dataset}/*.png")
+
+save_dir = "images/mask_align_retina"
+print('dataset: ', dataset)
+os.makedirs(save_dir, exist_ok= True)
+for path in tqdm(list_path_source):
+    image_align, mask_align = take_mask_align(path)
+    image_base_name = str(dataset) + "_" + "image" + "_" + str(count)+ ".jpg"
+    mask_base_name = str(dataset) + "_" + "mask" + "_" + str(count) + ".jpg"
+    cv2.imwrite(os.path.join(save_dir, mask_base_name), mask_align)
+    cv2.imwrite(os.path.join(save_dir, image_base_name), image_align)
+    count += 1 
 
 # transforms = T.Compose([
 #             T.Resize((112,112)),
