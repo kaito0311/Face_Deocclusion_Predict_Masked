@@ -12,10 +12,47 @@ from config import cfg
 from models.oagan.generator import OAGAN_Generator 
 from dataset.dataloader import FaceRemovedMaskedDataset, FaceDataset
 from face_processor_python.mfp import FaceDetector, Aligner
-from models.pre_deocclusion.de_occlu_syn import FaceDeocclusionModel 
+from models.pre_deocclusion.de_occlu_syn import FaceDeocclusionModel
+
+
+
+
+
+kind_model = 40000
+model = OAGAN_Generator(
+    pretrained_encoder="/home1/data/tanminh/NML-Face/pretrained/r160_imintv4_statedict.pth",
+    pretrain_deocclu_model= "/home1/data/tanminh/Face_Deocclusion_Predict_Masked/pretrained/ckpt_gen_lastest.pt",
+    freeze_deocclu_model= True
+)
+model.load_state_dict(torch.load(f"all_experiments/pretrained_deocclu_training/second_experiment/ckpt/ckpt_gen_{kind_model}.pt", map_location="cpu"))
+
+model.eval()
+model.cpu() 
+
+batch_size=1
+x = torch.randn(batch_size, 3, 112, 112, requires_grad=True)
+torch_out = model.predict_masked_model(x)
+
+# Export the model
+torch.onnx.export(model.predict_masked_model,               # model being run
+                  x,                         # model input (or a tuple for multiple inputs)
+                  "only_predict_mask_40k.onnx",   # where to save the model (can be a file or file-like object)
+                  export_params=True,        # store the trained parameter weights inside the model file
+                  opset_version=15,          # the ONNX version to export the model to
+                  do_constant_folding=True,  # whether to execute constant folding for optimization
+                  input_names = ['input'],   # the model's input names
+                  output_names = ['output'], # the model's output names
+                  dynamic_axes={'input' : {0 : 'batch_size'},    # variable length axes
+                                'output' : {0 : 'batch_size'}})
+
+
+
+exit()
+
 detector = FaceDetector(
     "face_processor_python/models/retinaface_mobilev3.onnx")
 aligner = Aligner()
+
 
 
 source_dir = "images/mask_align_retina"
@@ -37,48 +74,48 @@ os.makedirs(save_dir_image, exist_ok= True)
 # mask = np.array(mask, np.uint8)
 # cv2.imwrite("mask.jpg", mask)
 
+# # exit()
+# count = 0 
+
+# for path in tqdm(list_path):
+#     is_image = os.path.basename(path).split("_")[-2] == "image" 
+    
+#     if is_image: 
+#         image = cv2.imread(path) 
+
+#         path_mask = os.path.basename(path).split("_")
+#         path_mask[-2] = "mask" 
+#         path_mask = "_".join(path_mask)
+#         path_mask = os.path.join(source_dir, path_mask)
+
+#         if not os.path.isfile(path_mask):
+#             print("[ERROR] not found ", path_mask)
+#             continue
+
+#         mask = cv2.imread(path_mask)
+
+#         mask = mask * 255.0 
+#         mask = np.clip(mask, 0, 255)
+#         mask = np.array(mask, np.uint8)
+
+        
+#         cv2.imwrite(os.path.join(save_dir_image, str(count) + ".jpg"), image)
+#         cv2.imwrite(os.path.join(save_dir_mask, str(count) + ".jpg"), mask)
+
+#         count += 1
+        
+    
+
+    
+#     # os.system(cmd) 
+
+
+
+
+
+
 # exit()
-count = 0 
-
-for path in tqdm(list_path):
-    is_image = os.path.basename(path).split("_")[-2] == "image" 
-    
-    if is_image: 
-        image = cv2.imread(path) 
-
-        path_mask = os.path.basename(path).split("_")
-        path_mask[-2] = "mask" 
-        path_mask = "_".join(path_mask)
-        path_mask = os.path.join(source_dir, path_mask)
-
-        if not os.path.isfile(path_mask):
-            print("[ERROR] not found ", path_mask)
-            continue
-
-        mask = cv2.imread(path_mask)
-
-        mask = mask * 255.0 
-        mask = np.clip(mask, 0, 255)
-        mask = np.array(mask, np.uint8)
-
-        
-        cv2.imwrite(os.path.join(save_dir_image, str(count) + ".jpg"), image)
-        cv2.imwrite(os.path.join(save_dir_mask, str(count) + ".jpg"), mask)
-
-        count += 1
-        
-    
-
-    
-    # os.system(cmd) 
-
-
-
-
-
-
-exit()
-def take_mask_align(image_ori, image_size = (256, 256)):
+def take_mask_align_from_png(image_ori, image_size = (256, 256)):
     image_ori = cv2.imread(image_ori, cv2.IMREAD_UNCHANGED)
     image = np.zeros(shape=(512, 512, 4))
     image[128:128+256, 128: 128+256,:] = image_ori 
@@ -94,22 +131,48 @@ def take_mask_align(image_ori, image_size = (256, 256)):
 
     return image_align, mask_align
 
+def take_mask_align(image, mask, image_size = (256, 256)):
+    image = cv2.imread(image) 
+    mask = cv2.imread(mask) 
+
+    faceobjects = detector.DetectFace(image)
+    
+    if len(faceobjects) == 0:
+        return [], [] 
+
+    list_face, list_mask = [], [] 
+
+    for faceobj in faceobjects:
+        image_align = aligner.AlignFace(image, faceobj, image_size)
+        mask_align = aligner.AlignFace(mask, faceobj, image_size)
+        list_face.append(image_align.copy())
+        list_mask.append(mask_align.copy())
+    
+    return list_face, list_mask
+    
+
+
 
 count = 0 
 
-dataset = "mask_face"
-list_path_source = glob.glob(f"images/FaceOcc/FaceOcc/internet/{dataset}/*.png")
+root_dir = "images/segment_entire/"
 
-save_dir = "images/mask_align_retina"
-print('dataset: ', dataset)
-os.makedirs(save_dir, exist_ok= True)
-for path in tqdm(list_path_source):
-    image_align, mask_align = take_mask_align(path)
-    image_base_name = str(dataset) + "_" + "image" + "_" + str(count)+ ".jpg"
-    mask_base_name = str(dataset) + "_" + "mask" + "_" + str(count) + ".jpg"
-    cv2.imwrite(os.path.join(save_dir, mask_base_name), mask_align)
-    cv2.imwrite(os.path.join(save_dir, image_base_name), image_align)
-    count += 1 
+save_image = "images/segment_entire/align_image/"
+save_mask = "images/segment_entire/align_mask"
+os.makedirs(save_image, exist_ok= True) 
+os.makedirs(save_mask, exist_ok= True) 
+
+
+for path in tqdm(os.listdir(os.path.join(root_dir, "image"))):
+    list_image, list_mask = take_mask_align(os.path.join(root_dir, "image", path), os.path.join(root_dir, "mask", path))
+
+    idx = 0 
+    for image_align, mask_align in zip(list_image, list_mask):
+        base_name = str(idx) + "_" + path 
+        cv2.imwrite(os.path.join(save_image, base_name), image_align)
+        cv2.imwrite(os.path.join(save_mask, base_name), mask_align)
+        idx+=1 
+
 
 # transforms = T.Compose([
 #             T.Resize((112,112)),

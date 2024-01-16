@@ -50,7 +50,7 @@ def infer_face_de_occlusion(image, kind_model=1):
                 pretrain_deocclu_model= "/home1/data/tanminh/Face_Deocclusion_Predict_Masked/pretrained/ckpt_gen_lastest.pt",
                 freeze_deocclu_model= True
             )
-            model.load_state_dict(torch.load("all_experiments/pretrained_deocclu_training/second_experiment/ckpt/good_110k/ckpt_gen_backup.pt", map_location="cpu"))
+            model.load_state_dict(torch.load("all_experiments/pretrained_deocclu_training/second_experiment/ckpt/ckpt_gen_lastest.pt", map_location="cpu"))
             id_model = kind_model
     elif kind_model == 1:
         if kind_model != id_model:
@@ -60,6 +60,15 @@ def infer_face_de_occlusion(image, kind_model=1):
                 freeze_deocclu_model= True
             )
             model.load_state_dict(torch.load("all_experiments/pretrained_deocclu_training/second_experiment/ckpt/ckpt_gen_lastest.pt", map_location="cpu"))
+            id_model = kind_model
+    else:   
+        if kind_model != id_model:
+            model = OAGAN_Generator(
+                pretrained_encoder="/home1/data/tanminh/NML-Face/pretrained/r160_imintv4_statedict.pth",
+                pretrain_deocclu_model= "/home1/data/tanminh/Face_Deocclusion_Predict_Masked/pretrained/ckpt_gen_lastest.pt",
+                freeze_deocclu_model= True
+            )
+            model.load_state_dict(torch.load(f"all_experiments/pretrained_deocclu_training/second_experiment/ckpt/ckpt_gen_{kind_model}.pt", map_location="cpu"))
             id_model = kind_model
 
     model.to("cpu")

@@ -179,18 +179,20 @@ def eval(step):
 
     ckpt_folder = os.path.join(cfg.training_dir, "ckpt")
     os.makedirs(ckpt_folder, exist_ok=True)
-    path_backup_gen = os.path.join(ckpt_folder, "ckpt_gen_backup.pt")
-    path_lastest_gen = os.path.join(ckpt_folder, "ckpt_gen_lastest.pt")
-
-    if os.path.isfile(path_lastest_gen):
-        os.system(f"mv {path_lastest_gen} {path_backup_gen}")
+    # path_backup_gen = os.path.join(ckpt_folder, "ckpt_gen_backup.pt")
+    # path_lastest_gen = os.path.join(ckpt_folder, "ckpt_gen_lastest.pt")
+    # if os.path.isfile(path_lastest_gen):
+    #     os.system(f"mv {path_lastest_gen} {path_backup_gen}")
+    path_lastest_gen = os.path.join(ckpt_folder, f"ckpt_gen_{step}.pt")
     torch.save(model_generator.state_dict(), path_lastest_gen)
     model_disciminator.eval()
 
-    path_backup_disc = os.path.join(ckpt_folder, "ckpt_dis_backup.pt")
-    path_lastest_disc = os.path.join(ckpt_folder, "ckpt_dis_lastest.pt")
-    if os.path.isfile(path_lastest_disc):
-        os.system(f"mv {path_lastest_disc} {path_backup_disc}")
+    # path_backup_disc = os.path.join(ckpt_folder, "ckpt_dis_backup.pt")
+    # path_lastest_disc = os.path.join(ckpt_folder, "ckpt_dis_lastest.pt")
+    # if os.path.isfile(path_lastest_disc):
+    #     os.system(f"mv {path_lastest_disc} {path_backup_disc}")
+    
+    path_lastest_disc = os.path.join(ckpt_folder, f"ckpt_dis_{step}.pt")
     torch.save(model_disciminator.state_dict(), path_lastest_disc)
 
     model_disciminator.train()
@@ -515,7 +517,8 @@ if __name__ == "__main__":
         root_dir=cfg.ROOT_DIR,
         ratio_occlu=cfg.synthetic_mask_ratio_non_occlu,
         is_train=True,
-        path_occlusion_object="images/mask_align_retina"
+        path_occlusion_object_image="/home1/data/tanminh/MaskTheFace/data/image",
+        path_occlusion_object_mask="/home1/data/tanminh/MaskTheFace/data/mask",
     )
 
     occlu_trainset = FaceSyntheticDataset(
@@ -523,7 +526,8 @@ if __name__ == "__main__":
         root_dir=cfg.ROOT_DIR,
         ratio_occlu=cfg.synthetic_mask_ratio_occlu,
         is_train=True,
-        path_occlusion_object="images/mask_align_retina"
+        path_occlusion_object_image="/home1/data/tanminh/MaskTheFace/data/image",
+        path_occlusion_object_mask="/home1/data/tanminh/MaskTheFace/data/mask",
     )
 
     non_occlu_valset = FaceSyntheticDataset(
@@ -531,7 +535,8 @@ if __name__ == "__main__":
         root_dir=cfg.ROOT_DIR,
         ratio_occlu=cfg.synthetic_mask_ratio_non_occlu,
         is_train=False,
-        path_occlusion_object="images/mask_align_retina"
+        path_occlusion_object_image="/home1/data/tanminh/MaskTheFace/data/image",
+        path_occlusion_object_mask="/home1/data/tanminh/MaskTheFace/data/mask",
     )
 
     occlu_valset = FaceSyntheticDataset(
@@ -539,7 +544,8 @@ if __name__ == "__main__":
         root_dir=cfg.ROOT_DIR,
         ratio_occlu=cfg.synthetic_mask_ratio_occlu,
         is_train=False,
-        path_occlusion_object="images/mask_align_retina"
+        path_occlusion_object_image="/home1/data/tanminh/MaskTheFace/data/image",
+        path_occlusion_object_mask="/home1/data/tanminh/MaskTheFace/data/mask",
     )
 
     non_occlu_train_loader = DataLoader(

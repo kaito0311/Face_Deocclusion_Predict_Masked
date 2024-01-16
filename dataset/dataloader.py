@@ -331,13 +331,14 @@ class FaceRemovedMaskedDataset(data.Dataset):
 
 
 class FaceSyntheticDataset(data.Dataset):
-    def __init__(self, path_list_name_data, root_dir=None, ratio_occlu = 0, is_train=True, path_occlusion_object=None) -> None:
+    def __init__(self, path_list_name_data, root_dir=None, ratio_occlu = 0, is_train=True, path_occlusion_object_image=None, path_occlusion_object_mask = None) -> None:
         super().__init__()
 
         self.list_name_data = path_list_name_data 
         self.root_dir = root_dir 
         self.is_train = is_train
-        self.path_occlusion_object = path_occlusion_object 
+        self.path_occlusion_object_image = path_occlusion_object_image 
+        self.path_occlusion_object_mask = path_occlusion_object_mask
         self.ratio_occlu = ratio_occlu
 
         if str(path_list_name_data).endswith(".npy"):
@@ -346,7 +347,8 @@ class FaceSyntheticDataset(data.Dataset):
             self.list_img = shuffle(os.listdir(path_list_name_data))
 
         self.list_path_occlusion_object = os.listdir(
-            path_occlusion_object) if path_occlusion_object is not None else None
+            path_occlusion_object_image) if path_occlusion_object_image is not None else None
+        
 
         self.list_img = [os.path.join(root_dir, path) for path in self.list_img]
 
@@ -371,45 +373,29 @@ class FaceSyntheticDataset(data.Dataset):
     def mask_synthetic(self, image:Image):
         image = np.array(image) 
 
-        path = (os.path.join(
-            self.path_occlusion_object, random.choice(self.list_path_occlusion_object)))
+        name = random.choice(self.list_path_occlusion_object)
+
+        path_image = os.path.join(self.path_occlusion_object_image, name) 
+        path_mask = os.path.join(self.path_occlusion_object_mask, name) 
+
+        if not os.path.isfile(path_image) or not os.path.isfile(path_mask):
+            print("[ERROR] Cannot find: ", path_image)
+            return Image.fromarray(image), None
         
-        mask, occlu_obj = None, None 
-
-        if os.path.basename(path).split("_")[-2] == "image":
-            mask_path = os.path.basename(path).split("_")
-            mask_path[-2] = "mask"
-            mask_path = "_".join(mask_path)
-            mask_path = os.path.join(self.path_occlusion_object, mask_path) 
-            if not os.path.isfile(mask_path):
-                print("[ERROR] Cannot find: ", mask_path)
-                return Image.fromarray(image), None
-            mask = cv2.imread(mask_path) 
-            mask = cv2.cvtColor(mask, cv2.COLOR_BGR2RGB)
-
-            occlu_obj = cv2.imread(path) 
-            occlu_obj = cv2.cvtColor(occlu_obj, cv2.COLOR_BGR2RGB)
-
-        else:
-            occlu_path = os.path.basename(path).split("_")
-            occlu_path[-2] = "image"
-            occlu_path = "_".join(occlu_path)
-            occlu_path = os.path.join(self.path_occlusion_object, occlu_path) 
-            if not os.path.isfile(occlu_path):
-                print("[ERROR] Cannot find: ", occlu_path)
-                return Image.fromarray(image), None
-            occlu_obj = cv2.imread(occlu_path) 
-            occlu_obj = cv2.cvtColor(occlu_obj, cv2.COLOR_BGR2RGB)
-
-            mask= cv2.imread(path) 
-            mask = cv2.cvtColor(mask, cv2.COLOR_BGR2RGB) 
+        mask, occlu_obj = cv2.imread(path_mask), cv2.imread(path_image)
+        occlu_obj = cv2.cvtColor(occlu_obj, cv2.COLOR_BGR2RGB)
+        
         
         h, w, _ = image.shape 
         mask = cv2.resize(mask, (w, h))
         occlu_obj = cv2.resize(occlu_obj, (w, h)) 
-
+        
+        mask = mask / 255.
+        mask = np.array(mask, np.uint8)
         masked_image = Image.fromarray(image * (1 - mask) + occlu_obj * mask)
+
         mask = Image.fromarray(np.array(mask * 255., dtype= np.uint8))
+
         return masked_image, mask
     
     def blur_image(self, image:Image): 
